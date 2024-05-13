@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Binary, DepsMut, Uint128};
 
 use crate::state::Fee;
 
@@ -8,6 +8,7 @@ use crate::state::Fee;
 pub struct InstantiateMsg {
     pub fee: Fee,
     pub admin: String,
+    pub enigma_token_duel: String,
 }
 
 // executing input and output structs/enums //
@@ -34,13 +35,27 @@ pub enum GameRoomStatus {
     Draw {},
     OnGoing {},
 }
+#[cw_serde]
+pub struct SendFrom {
+    pub owner: String,
+    pub contract: String,
+    pub amount: Uint128,
+    pub msg: Binary,
+}
 
+#[cw_serde]
+pub struct IncreaseBalanceCallbackParams {
+    pub user: Addr,
+    pub amount: Uint128,
+}
 // input messages
 #[cw_serde]
 pub enum ExecuteMsg {
     // Deposit
     IncreaseBalance {
         amount: Uint128,
+        contract_addr: Addr,
+        edt_addr: Addr,
     },
     // Withdraw
     DecreaseBalance {
@@ -54,6 +69,11 @@ pub enum ExecuteMsg {
     }, // no output considered for this instruction
     CollectFees {
         amount: Uint128,
+    },
+    Cw20ReceiveMsg {
+        sender: String,
+        amount: Uint128,
+        msg: Binary,
     },
 }
 

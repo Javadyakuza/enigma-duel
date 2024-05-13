@@ -1,5 +1,5 @@
 [package]
-name = "enigmaduel"
+name = "test-edt"
 version = "0.1.0"
 authors = ["javadyakuza <javadyakuzaa@gmail.com>"]
 edition = "2021"
@@ -15,15 +15,15 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [profile.release]
-codegen-units = 1
-debug = false
-debug-assertions = false
-incremental = false
-lto = true
 opt-level = 3
-overflow-checks = true
-panic = 'abort'
+debug = false
 rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
 
 [features]
 # for more explicit tests, cargo test --features=backtraces
@@ -48,13 +48,14 @@ cosmwasm-schema = "1.3.1"
 cosmwasm-std = "1.3.1"
 cosmwasm-storage = "1.3.1"
 cw-storage-plus = "1.1.0"
+cw-utils = "1.0.1"
+cw0 = "0.10.3"
 cw2 = "1.1.0"
 cw20 = "1.1.0"
 schemars = "0.8.12"
+semver = "1"
 serde = { version = "1.0.183", default-features = false, features = ["derive"] }
 thiserror = "1.0.44"
-test-edt = {path = "../test-edt"}
-cw721 = "0.18.0"
 
 [dev-dependencies]
 cw-multi-test = "0.17.0"
