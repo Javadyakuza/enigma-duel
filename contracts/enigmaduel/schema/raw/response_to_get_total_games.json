@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GetTotalGamesResp",
+  "type": "object",
+  "required": [
+    "total_games"
+  ],
+  "properties": {
+    "total_games": {
+      "type": "integer",
+      "format": "int64"
+    }
+  },
+  "additionalProperties": false
+}

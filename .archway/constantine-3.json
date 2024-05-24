@@ -1,0 +1,97 @@
+{
+  "deployments": [
+    {
+      "action": "instantiate",
+      "txhash": "5DB4C04820E071B5B9BB6E7B801C7DCD11F607C593AC9D705BFD953AE0DB816F",
+      "wasm": {
+        "codeId": 2695
+      },
+      "contract": {
+        "name": "enigmaduel",
+        "version": "0.1.0",
+        "address": "archway1xcj9e4mc46n9zwm3ugdq4lw5vwjsxw93m2ea3larcymzaklt828qlcq93c",
+        "admin": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey"
+      },
+      "msg": {
+        "fee": {
+          "draw": "1",
+          "win": "2"
+        },
+        "admin": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey",
+        "enigma_token_duel": "archway136h687j5gsv40kr57h5xv0p6yvzn032qt7dpkhwg2u40r2s29ycq4heglr"
+      }
+    },
+    {
+      "action": "store",
+      "txhash": "32EB416A3D3DC6D51F03959DE8E3613980FD7B2D1B4641716D1F24632A09F018",
+      "wasm": {
+        "codeId": 2695,
+        "checksum": "7437cd65ae8464a30ac4c6706e73486e7b1fa6afa555bfa69e4e7f93c7c42063"
+      },
+      "contract": {
+        "name": "enigmaduel",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "action": "metadata",
+      "txhash": "3389FB9FAE6885D897F31C029F7BFFEF3DDA70BAA9C3C7E4EFDB387E226B3CB8",
+      "wasm": {
+        "codeId": 2678
+      },
+      "contract": {
+        "name": "test-edt",
+        "version": "0.1.0",
+        "address": "archway136h687j5gsv40kr57h5xv0p6yvzn032qt7dpkhwg2u40r2s29ycq4heglr",
+        "admin": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey"
+      },
+      "metadata": {
+        "contractAddress": "archway136h687j5gsv40kr57h5xv0p6yvzn032qt7dpkhwg2u40r2s29ycq4heglr",
+        "ownerAddress": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey",
+        "rewardsAddress": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey",
+        "withdrawToWallet": true
+      }
+    },
+    {
+      "action": "instantiate",
+      "txhash": "CA480F9C5BFA3404A0259DBCC41D14D6BE9A4DE44B41DE4A04866153B297348E",
+      "wasm": {
+        "codeId": 2678
+      },
+      "contract": {
+        "name": "test-edt",
+        "version": "0.1.0",
+        "address": "archway136h687j5gsv40kr57h5xv0p6yvzn032qt7dpkhwg2u40r2s29ycq4heglr",
+        "admin": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey"
+      },
+      "msg": {
+        "name": "Enigma Duel Token",
+        "symbol": "EDT",
+        "decimals": 9,
+        "initial_balances": [
+          {
+            "address": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey",
+            "amount": "10000000000"
+          }
+        ],
+        "mint": {
+          "minter": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey",
+          "cap": "100000000000"
+        },
+        "marketing": null
+      }
+    },
+    {
+      "action": "store",
+      "txhash": "AFF672F2324CA7C7173A4E6192E5375E887F423E79201C1A13309E1C6C750E61",
+      "wasm": {
+        "codeId": 2678,
+        "checksum": "f3ca0f1136f348a4f54f2e6b97057898145f33db3cddd839d445bd17d86dd8f9"
+      },
+      "contract": {
+        "name": "test-edt",
+        "version": "0.1.0"
+      }
+    }
+  ]
+}

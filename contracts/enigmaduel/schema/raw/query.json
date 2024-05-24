@@ -5,10 +5,66 @@
     {
       "type": "object",
       "required": [
-        "get_count"
+        "get_user_balance"
       ],
       "properties": {
-        "get_count": {
+        "get_user_balance": {
+          "type": "object",
+          "required": [
+            "user"
+          ],
+          "properties": {
+            "user": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_game_room_state"
+      ],
+      "properties": {
+        "get_game_room_state": {
+          "type": "object",
+          "required": [
+            "Game_room_id"
+          ],
+          "properties": {
+            "Game_room_id": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_collected_fees"
+      ],
+      "properties": {
+        "get_collected_fees": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_total_games"
+      ],
+      "properties": {
+        "get_total_games": {
           "type": "object",
           "additionalProperties": false
         }

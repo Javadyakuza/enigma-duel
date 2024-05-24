@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GameRoomStatus",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "win"
+      ],
+      "properties": {
+        "win": {
+          "type": "object",
+          "required": [
+            "winner_addr"
+          ],
+          "properties": {
+            "winner_addr": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "draw"
+      ],
+      "properties": {
+        "draw": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "on_going"
+      ],
+      "properties": {
+        "on_going": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

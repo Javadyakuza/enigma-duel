@@ -247,7 +247,7 @@ mod tests {
                     }],
                     mint: Some(MinterResponse {
                         minter: "addr0000".into(),
-                        cap: Some(Uint128::new(10_000_000_000)),
+                        cap: Some(Uint128::new(100_000_000_000)),
                     }),
                     marketing: None,
                 },
