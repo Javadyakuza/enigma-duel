@@ -2,6 +2,72 @@
   "deployments": [
     {
       "action": "instantiate",
+      "txhash": "38E0222C8111EBB682FFDC2A78082DA6B3622A73463134AE690BBD275685EEF2",
+      "wasm": {
+        "codeId": 2714
+      },
+      "contract": {
+        "name": "enigmaduel",
+        "version": "0.1.0",
+        "address": "archway18jalph2rkcv44937kspwx44jhk4esjc3ldrutr3hung2299gsu2qm6x5gs",
+        "admin": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey"
+      },
+      "msg": {
+        "fee": {
+          "draw": "1",
+          "win": "2"
+        },
+        "admin": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey",
+        "enigma_token_duel": "archway136h687j5gsv40kr57h5xv0p6yvzn032qt7dpkhwg2u40r2s29ycq4heglr"
+      }
+    },
+    {
+      "action": "store",
+      "txhash": "F26FB90E67EA1D7B2695F4C4016EBE098A29F0FD2E10CD094185C92A5D9B7913",
+      "wasm": {
+        "codeId": 2714,
+        "checksum": "5cd55d17029c7a7bb3fa30299d3381829356613624c56e2a4550716ac41293d8"
+      },
+      "contract": {
+        "name": "enigmaduel",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "action": "instantiate",
+      "txhash": "1F3D54FE0F73605823B4D24DDD676AB6ACBAF420F1F92739407B0639A7F798C8",
+      "wasm": {
+        "codeId": 2700
+      },
+      "contract": {
+        "name": "enigmaduel",
+        "version": "0.1.0",
+        "address": "archway18hjqfahj5lrn2s734kcajuj5d34y9adm6kary7wwzrv86xm4uxfquu30z2",
+        "admin": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey"
+      },
+      "msg": {
+        "fee": {
+          "draw": "1",
+          "win": "2"
+        },
+        "admin": "archway1rz79fw2000ezjffyrgsrdqt7ag0mnewqyswmey",
+        "enigma_token_duel": "archway136h687j5gsv40kr57h5xv0p6yvzn032qt7dpkhwg2u40r2s29ycq4heglr"
+      }
+    },
+    {
+      "action": "store",
+      "txhash": "4927D59668744D98A5D1B97465350E4DACFD4066016EDD5B877648106FD0C32D",
+      "wasm": {
+        "codeId": 2700,
+        "checksum": "74117164a411ef161283ca8f067feecf3a3366bf516418502031899852b708cc"
+      },
+      "contract": {
+        "name": "enigmaduel",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "action": "instantiate",
       "txhash": "5DB4C04820E071B5B9BB6E7B801C7DCD11F607C593AC9D705BFD953AE0DB816F",
       "wasm": {
         "codeId": 2695

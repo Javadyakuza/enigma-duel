@@ -32,26 +32,20 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // setting the fee for each game result
-    FEE.save(deps.storage, &msg.fee).unwrap();
+    FEE.save(deps.storage, &msg.fee)?;
 
     // setting the admin address that collects the fees as well.
-    ADMIN
-        .save(deps.storage, &Addr::unchecked(msg.admin.clone()))
-        .unwrap();
+    ADMIN.save(deps.storage, &Addr::unchecked(msg.admin.clone()))?;
 
     // instantiating the admin address as the fee collector.
-    BALANCES
-        .save(
-            deps.storage,
-            &Addr::unchecked(msg.admin.clone()),
-            &Uint128::zero(),
-        )
-        .unwrap();
+    BALANCES.save(
+        deps.storage,
+        &Addr::unchecked(msg.admin.clone()),
+        &Uint128::zero(),
+    )?;
 
     // instantiating the enigma duel token address.
-    ENIGMA_DUEL_TOKEN
-        .save(deps.storage, &(Addr::unchecked(msg.enigma_token_duel)))
-        .unwrap();
+    ENIGMA_DUEL_TOKEN.save(deps.storage, &(Addr::unchecked(msg.enigma_token_duel)))?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -75,7 +69,7 @@ pub fn execute(
             contract_addr,
             edt_addr,
         } => {
-            execute::increase_balance(deps, contract_addr, info, amount, edt_addr).unwrap();
+            execute::increase_balance(deps, contract_addr, info, amount, edt_addr)?;
             Ok(Response::new())
         }
         ExecuteMsg::DecreaseBalance { amount } => Ok(Response::new()),
@@ -91,14 +85,14 @@ pub fn execute(
             amount,
             msg,
         } => {
-            execute::increase_balance_callback(deps, info.sender, msg, amount).unwrap();
+            execute::increase_balance_callback(deps, info.sender, msg, amount)?;
             Ok(Response::new())
         }
     }
 }
 
 pub mod execute {
-    use cosmwasm_std::{coins, from_json, to_json_binary, CosmosMsg};
+    use cosmwasm_std::{coins, from_json, to_json_binary, CosmosMsg, WasmMsg};
     use cw721::Cw721ReceiveMsg;
 
     use crate::{
@@ -121,33 +115,23 @@ pub mod execute {
         // let edt_addr: Addr = ENIGMA_DUEL_TOKEN.load(deps.storage).unwrap();
 
         // preparing the message that is going to be received from the enigma duel token contract.
-        let call_back_msg: Binary = to_json_binary(&info.sender).unwrap();
+        let call_back_msg: Binary = to_json_binary(&info.sender)?;
 
-        // preparing the msg to attach to the response to be sent to the enigma duel token contract.
-        // let transfer_msg = ;
-        // let send = Cw721ReceiveMsg {
-        //     sender: info.sender.to_string(),
-        //     token_id: "token_id".to_string(),
-        //     msg: Binary::default(),
-        // };
-
-        let msg = cosmwasm_std::CosmosMsg::Wasm(cosmwasm_std::WasmMsg::Execute {
+        let msg: CosmosMsg = cosmwasm_std::WasmMsg::Execute {
             contract_addr: edt_addr.to_string(),
-            msg: to_json_binary(&cw20::Cw20ExecuteMsg::SendFrom {
+            msg: to_binary(&cw20::Cw20ExecuteMsg::TransferFrom {
                 owner: info.sender.to_string(),
-                contract: contract_addr.to_string(),
+                recipient: contract_addr.to_string(),
                 amount,
-                msg: call_back_msg,
-            })
-            .unwrap(),
-            funds: coins(1, "eth"),
-        });
+                // msg: call_back_msg,
+            })?,
+            funds: vec![],
+        }
+        .into();
 
-        let response: Response = Response::new()
-            .add_message(msg)
-            .add_attribute("action", "increase_balance");
-
-        Ok(response)
+        Ok(Response::new()
+            .add_attribute("action", "increase_balance")
+            .add_message(msg))
     }
 
     pub fn increase_balance_callback(
@@ -156,21 +140,19 @@ pub mod execute {
         user: Binary,
         amount: Uint128,
     ) -> Result<Response, ContractError> {
-        let edt_addr: Addr = ENIGMA_DUEL_TOKEN.load(deps.storage).unwrap();
+        let edt_addr: Addr = ENIGMA_DUEL_TOKEN.load(deps.storage)?;
 
         if sender != edt_addr {
             return Err(error::ContractError::Unauthorized {});
         }
 
-        BALANCES
-            .update(
-                deps.storage,
-                &Addr::unchecked(from_json::<Addr>(user).unwrap()),
-                move |balance: Option<Uint128>| -> StdResult<_> {
-                    Ok(balance.unwrap_or_default() + amount)
-                },
-            )
-            .unwrap();
+        BALANCES.update(
+            deps.storage,
+            &Addr::unchecked(from_json::<Addr>(user)?),
+            move |balance: Option<Uint128>| -> StdResult<_> {
+                Ok(balance.unwrap_or_default() + amount)
+            },
+        )?;
 
         Ok(Response::new())
     }
@@ -188,11 +170,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }),
         QueryMsg::GetTotalGames {} => to_json_binary(&Uint128::new(5)),
         QueryMsg::GetUserBalance { user } => {
-            let balance: Option<Uint128> = BALANCES
-                .may_load(deps.storage, &Addr::unchecked("addr0000"))
-                .unwrap();
+            let balance: Option<Uint128> =
+                BALANCES.may_load(deps.storage, &Addr::unchecked("addr0000"))?;
 
-            Ok(to_json_binary(&balance).unwrap())
+            Ok(to_json_binary(&balance)?)
         }
     }
 }
@@ -293,7 +274,7 @@ mod tests {
                     amount: Uint128::new(1_000_000_000),
                     expires: None,
                 },
-                &coins(1, "eth"),
+                &[],
             )
             .unwrap();
 
@@ -306,7 +287,7 @@ mod tests {
                     contract_addr: enigma_addr.clone(),
                     edt_addr: edt_addr.clone(),
                 },
-                &coins(1, "eth"),
+                &[],
             )
             .unwrap();
 

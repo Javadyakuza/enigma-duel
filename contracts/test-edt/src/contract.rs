@@ -515,7 +515,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::AllAllowances {
             owner,
-            start_after,
+            start_after, 
             limit,
         } => to_binary(&query_owner_allowances(deps, owner, start_after, limit)?),
         QueryMsg::AllSpenderAllowances {
