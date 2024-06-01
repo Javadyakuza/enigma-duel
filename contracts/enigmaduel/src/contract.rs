@@ -65,11 +65,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::IncreaseBalance {
-            amount,
-            contract_addr,
-        } => execute::increase_balance(deps, contract_addr, info, amount),
-        ExecuteMsg::DecreaseBalance { amount } => Ok(Response::new()),
+        ExecuteMsg::UpdateBalance { update_mode } => {
+            execute::update_balance(deps, _env, info, update_mode)
+        }
         ExecuteMsg::CreateGameRoom {
             game_room_init_params,
         } => Ok(Response::new()),
@@ -91,16 +89,16 @@ pub mod execute {
 
     use crate::{
         error,
-        msg::{BalanceChangeResp, IncreaseBalanceCallbackParams, SendFrom},
+        msg::{BalanceChangeResp, SendFrom, UpdateBalanceMode},
     };
 
     use super::*;
 
-    pub fn increase_balance(
+    pub fn update_balance(
         deps: DepsMut,
-        contract_addr: Addr,
+        env: Env,
         info: MessageInfo,
-        amount: Uint128,
+        update_mode: UpdateBalanceMode,
     ) -> Result<Response, ContractError> {
         // fetching the enigma duel token address
         let edt_addr: Addr = ENIGMA_DUEL_TOKEN.load(deps.storage).unwrap();
@@ -168,15 +166,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
     }
 }
-
-// pub mod query {
-//     use super::*;
-
-//     pub fn count(deps: Deps) -> StdResult<GetCountResponse> {
-//         let state = STATE.load(deps.storage)?;
-//         Ok(GetCountResponse { count: state.count })
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

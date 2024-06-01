@@ -44,22 +44,18 @@ pub struct SendFrom {
 }
 
 #[cw_serde]
-pub struct IncreaseBalanceCallbackParams {
-    pub user: Addr,
-    pub amount: Uint128,
+pub enum UpdateBalanceMode {
+    Deposit { amount: Uint128 },
+    Withdraw { amount: Uint128, receiver: String },
 }
 // input messages
 #[cw_serde]
 pub enum ExecuteMsg {
     // Deposit
-    IncreaseBalance {
-        amount: Uint128,
-        contract_addr: Addr,
+    UpdateBalance {
+        update_mode: UpdateBalanceMode,
     },
-    // Withdraw
-    DecreaseBalance {
-        amount: Uint128,
-    },
+
     CreateGameRoom {
         game_room_init_params: GameRoomIntiParams,
     },
