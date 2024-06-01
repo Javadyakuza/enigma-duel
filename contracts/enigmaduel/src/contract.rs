@@ -7,6 +7,7 @@ use cosmwasm_std::{
     Uint128,
 };
 use cw2::set_contract_version;
+use cw20::Cw20ReceiveMsg;
 
 use crate::error::ContractError;
 use crate::msg::{
@@ -67,11 +68,7 @@ pub fn execute(
         ExecuteMsg::IncreaseBalance {
             amount,
             contract_addr,
-            edt_addr,
-        } => {
-            execute::increase_balance(deps, contract_addr, info, amount, edt_addr)?;
-            Ok(Response::new())
-        }
+        } => execute::increase_balance(deps, contract_addr, info, amount),
         ExecuteMsg::DecreaseBalance { amount } => Ok(Response::new()),
         ExecuteMsg::CreateGameRoom {
             game_room_init_params,
@@ -80,20 +77,17 @@ pub fn execute(
             game_room_id: Uint128,
         } => Ok(Response::new()),
         ExecuteMsg::CollectFees { amount } => Ok(Response::new()),
-        ExecuteMsg::Cw20ReceiveMsg {
-            sender,
-            amount,
-            msg,
-        } => {
-            execute::increase_balance_callback(deps, info.sender, msg, amount)?;
-            Ok(Response::new())
-        }
+        ExecuteMsg::Receive(receive_msg) => execute::increase_balance_callback(
+            deps,
+            info.sender,
+            receive_msg.msg,
+            receive_msg.amount,
+        ),
     }
 }
 
 pub mod execute {
     use cosmwasm_std::{coins, from_json, to_json_binary, CosmosMsg, WasmMsg};
-    use cw721::Cw721ReceiveMsg;
 
     use crate::{
         error,
@@ -107,31 +101,28 @@ pub mod execute {
         contract_addr: Addr,
         info: MessageInfo,
         amount: Uint128,
-        edt_addr: Addr,
     ) -> Result<Response, ContractError> {
-        // transferring the tokens to this contract address
-
         // fetching the enigma duel token address
-        // let edt_addr: Addr = ENIGMA_DUEL_TOKEN.load(deps.storage).unwrap();
+        let edt_addr: Addr = ENIGMA_DUEL_TOKEN.load(deps.storage).unwrap();
 
         // preparing the message that is going to be received from the enigma duel token contract.
-        let call_back_msg: Binary = to_json_binary(&info.sender)?;
+        let call_back_msg: Binary = to_binary(&info.sender)?;
 
         let msg: CosmosMsg = cosmwasm_std::WasmMsg::Execute {
             contract_addr: edt_addr.to_string(),
-            msg: to_binary(&cw20::Cw20ExecuteMsg::TransferFrom {
-                owner: info.sender.to_string(),
-                recipient: contract_addr.to_string(),
+            msg: to_binary(&cw20::Cw20ExecuteMsg::SendFrom {
+                owner: info.sender.into(),
+                contract: contract_addr.into(),
                 amount,
-                // msg: call_back_msg,
+                msg: call_back_msg,
             })?,
             funds: vec![],
         }
         .into();
 
-        Ok(Response::new()
-            .add_attribute("action", "increase_balance")
-            .add_message(msg))
+        // Your contract logic here
+        let attributes = vec![("action", "increase balance")];
+        Ok(Response::new().add_attributes(attributes).add_message(msg))
     }
 
     pub fn increase_balance_callback(
@@ -285,12 +276,11 @@ mod tests {
                 &ExecuteMsg::IncreaseBalance {
                     amount: Uint128::new(100_000_000),
                     contract_addr: enigma_addr.clone(),
-                    edt_addr: edt_addr.clone(),
                 },
                 &[],
             )
             .unwrap();
-
+        println!("{:?}", exe_resp);
         let query_resp: Option<Uint128> = app
             .wrap()
             .query_wasm_smart(

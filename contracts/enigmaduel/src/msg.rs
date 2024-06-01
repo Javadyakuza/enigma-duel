@@ -55,7 +55,6 @@ pub enum ExecuteMsg {
     IncreaseBalance {
         amount: Uint128,
         contract_addr: Addr,
-        edt_addr: Addr,
     },
     // Withdraw
     DecreaseBalance {
@@ -70,11 +69,7 @@ pub enum ExecuteMsg {
     CollectFees {
         amount: Uint128,
     },
-    Cw20ReceiveMsg {
-        sender: String,
-        amount: Uint128,
-        msg: Binary,
-    },
+    Receive(Cw20ReceiveMsg),
 }
 
 // output structs
@@ -113,4 +108,11 @@ pub struct GetCollectedFeesResp {
 #[cw_serde]
 pub struct GetTotalGamesResp {
     pub total_games: i64,
+}
+
+#[cw_serde]
+pub struct Cw20ReceiveMsg {
+    pub sender: String,
+    pub amount: Uint128,
+    pub msg: Binary,
 }
