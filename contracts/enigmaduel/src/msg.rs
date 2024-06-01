@@ -45,8 +45,15 @@ pub struct SendFrom {
 
 #[cw_serde]
 pub enum UpdateBalanceMode {
-    Deposit { amount: Uint128 },
-    Withdraw { amount: Uint128, receiver: String },
+    Deposit {
+        user: Option<String>,
+        amount: Uint128,
+    },
+    Withdraw {
+        user: Option<String>,
+        amount: Uint128,
+        receiver: String,
+    },
 }
 // input messages
 #[cw_serde]
