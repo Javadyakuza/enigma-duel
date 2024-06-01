@@ -55,6 +55,32 @@ pub enum UpdateBalanceMode {
         receiver: String,
     },
 }
+
+impl UpdateBalanceMode {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::Deposit { user, amount } => {
+                format!(
+                    "Deposit {} tokens for user {} ",
+                    amount,
+                    user.clone().unwrap()
+                )
+            }
+            Self::Withdraw {
+                user,
+                amount,
+                receiver,
+            } => {
+                format!(
+                    "withdraw {} tokens for user {} from {} ",
+                    amount,
+                    receiver,
+                    user.clone().unwrap(),
+                )
+            }
+        }
+    }
+}
 // input messages
 #[cw_serde]
 pub enum ExecuteMsg {

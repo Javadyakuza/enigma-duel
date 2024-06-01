@@ -76,20 +76,19 @@ pub fn execute(
         } => Ok(Response::new()),
         ExecuteMsg::CollectFees { amount } => Ok(Response::new()),
         ExecuteMsg::Receive(receive_msg) => {
-            execute::update_balance_callback(deps, info.sender, receive_msg.msg, receive_msg.amount)
+            execute::update_balance_callback(deps, info.sender, receive_msg.msg)
         }
     }
 }
 
 pub mod execute {
-    use cosmwasm_std::{coins, from_json, to_json_binary, CosmosMsg, WasmMsg};
-
-    use crate::{
-        error,
-        msg::{BalanceChangeResp, SendFrom, UpdateBalanceMode},
-    };
+    use cosmwasm_std::{coins, from_binary, from_json, to_json_binary, CosmosMsg, WasmMsg};
 
     use super::*;
+    use crate::{
+        error,
+        msg::{BalanceChangeResp, SendFrom, UpdateBalanceMode, UpdateBalanceMode::*},
+    };
 
     pub fn update_balance(
         deps: DepsMut,
@@ -97,12 +96,11 @@ pub mod execute {
         info: MessageInfo,
         update_mode: UpdateBalanceMode,
     ) -> Result<Response, ContractError> {
-        use UpdateBalanceMode::*;
-
         // fetching the enigma duel token address
         // Your contract logic here
         Ok(Response::new()
-            .add_attribute("action", "increase balance")
+            .add_attribute("action", "update_balance_request")
+            .add_attribute("request_data", update_mode.to_string())
             .add_message(
                 // matching the mode
                 match update_mode {
@@ -124,12 +122,12 @@ pub mod execute {
                     } => cosmwasm_std::WasmMsg::Execute {
                         contract_addr: ENIGMA_DUEL_TOKEN.load(deps.storage)?.into(),
                         msg: to_binary(&cw20::Cw20ExecuteMsg::Send {
-                            contract: receiver,
+                            contract: receiver.clone(),
                             amount,
                             msg: to_binary(&Withdraw {
                                 user: Some(info.sender.into()),
                                 amount,
-                                receiver: "".to_string(),
+                                receiver,
                             })?,
                         })?,
                         funds: vec![],
@@ -141,8 +139,7 @@ pub mod execute {
     pub fn update_balance_callback(
         deps: DepsMut,
         sender: Addr,
-        user: Binary,
-        amount: Uint128,
+        update_mode: Binary,
     ) -> Result<Response, ContractError> {
         let edt_addr: Addr = ENIGMA_DUEL_TOKEN.load(deps.storage)?;
 
@@ -150,15 +147,40 @@ pub mod execute {
             return Err(error::ContractError::Unauthorized {});
         }
 
-        BALANCES.update(
-            deps.storage,
-            &Addr::unchecked(from_json::<Addr>(user)?),
-            move |balance: Option<Uint128>| -> StdResult<_> {
-                Ok(balance.unwrap_or_default() + amount)
-            },
-        )?;
-
-        Ok(Response::new())
+        let update_balance_data: UpdateBalanceMode =
+            match from_binary::<UpdateBalanceMode>(&update_mode)? {
+                Deposit { amount, user } => {
+                    BALANCES.update(
+                        deps.storage,
+                        &Addr::unchecked(user.clone().unwrap()),
+                        |balance: Option<Uint128>| -> StdResult<_> {
+                            Ok(balance.unwrap_or_default() + amount)
+                        },
+                    )?;
+                    Deposit { user, amount }
+                }
+                Withdraw {
+                    amount,
+                    user,
+                    receiver,
+                } => {
+                    BALANCES.update(
+                        deps.storage,
+                        &Addr::unchecked(user.clone().unwrap()),
+                        |balance: Option<Uint128>| -> StdResult<_> {
+                            Ok(balance.unwrap_or_default().checked_sub(amount)?)
+                        },
+                    )?;
+                    Withdraw {
+                        user,
+                        amount,
+                        receiver,
+                    }
+                }
+            };
+        Ok(Response::new()
+            .add_attribute("action", "update_balance_confirmed")
+            .add_attribute("update_balance_data", update_balance_data.to_string()))
     }
 }
 
