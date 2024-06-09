@@ -8,6 +8,9 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 use cw20::Cw20ReceiveMsg;
+use execute::create_game_room;
+use serde::Serialize;
+use test_edt::msg;
 
 use crate::error::ContractError;
 use crate::msg::{
@@ -51,10 +54,7 @@ pub fn instantiate(
     Ok(Response::new()
         .add_attribute("method", "instantiate")
         .add_attribute("admin", msg.admin)
-        .add_attribute(
-            "fees",
-            format!("draw: {}, win: {}", msg.fee.draw, msg.fee.win),
-        ))
+        .add_attribute("fee", msg.fee))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -70,24 +70,28 @@ pub fn execute(
         }
         ExecuteMsg::CreateGameRoom {
             game_room_init_params,
-        } => Ok(Response::new()),
+        } => create_game_room(deps, info, game_room_init_params),
         ExecuteMsg::FinishGameRoom {
             game_room_id: Uint128,
         } => Ok(Response::new()),
         ExecuteMsg::CollectFees { amount } => Ok(Response::new()),
         ExecuteMsg::Receive(receive_msg) => {
-            execute::update_balance_callback(deps, info.sender, receive_msg.msg)
+            execute::update_balance_callback(deps, info, receive_msg.msg)
         }
     }
 }
 
 pub mod execute {
-    use cosmwasm_std::{coins, from_binary, from_json, to_json_binary, CosmosMsg, WasmMsg};
+    use cosmwasm_std::from_binary;
 
     use super::*;
     use crate::{
-        error,
-        msg::{BalanceChangeResp, SendFrom, UpdateBalanceMode, UpdateBalanceMode::*},
+        error::{self, InsufficientBalanceErr},
+        helpers::create_key_hash,
+        msg::{
+            GameRoomFinishParams, GameRoomIntiParams,
+            UpdateBalanceMode::{self, *},
+        },
     };
 
     pub fn update_balance(
@@ -96,7 +100,9 @@ pub mod execute {
         info: MessageInfo,
         update_mode: UpdateBalanceMode,
     ) -> Result<Response, ContractError> {
-        // fetching the enigma duel token address
+        // address doesn't need be validated because the internal state is not getting changed,
+        // in the call back we change the balance and we are sure that the address is correct.
+
         // Your contract logic here
         Ok(Response::new()
             .add_attribute("action", "update_balance_request")
@@ -138,12 +144,12 @@ pub mod execute {
 
     pub fn update_balance_callback(
         deps: DepsMut,
-        sender: Addr,
+        info: MessageInfo,
         update_mode: Binary,
     ) -> Result<Response, ContractError> {
         let edt_addr: Addr = ENIGMA_DUEL_TOKEN.load(deps.storage)?;
 
-        if sender != edt_addr {
+        if info.sender != edt_addr {
             return Err(error::ContractError::Unauthorized {});
         }
 
@@ -181,6 +187,117 @@ pub mod execute {
         Ok(Response::new()
             .add_attribute("action", "update_balance_confirmed")
             .add_attribute("update_balance_data", update_balance_data.to_string()))
+    }
+
+    pub fn create_game_room(
+        deps: DepsMut,
+        info: MessageInfo,
+        params: GameRoomIntiParams,
+    ) -> Result<Response, ContractError> {
+        // sender must be app admin
+        if info.sender != ADMIN.load(deps.storage)? {
+            return Err(error::ContractError::Unauthorized {});
+        }
+
+        // each contestant must have whole prize pool amount - enigma duel fee / 2 token balances
+        // loading the fee
+        let min_required = (params
+            .prize_pool
+            .checked_sub(FEE.load(deps.storage)?)
+            .unwrap())
+        .checked_div_euclid(Uint128::new(2))
+        .unwrap();
+
+        let (con_1_bal, con_2_bal) = (
+            BALANCES
+                .may_load(deps.storage, &Addr::unchecked(params.contestant1.clone()))
+                .unwrap()
+                .unwrap(),
+            BALANCES
+                .may_load(deps.storage, &Addr::unchecked(params.contestant2.clone()))
+                .unwrap()
+                .unwrap(),
+        );
+
+        // in the following line we also check the prize pool to not be zero
+        if min_required >= con_1_bal || min_required >= con_2_bal {
+            return Err(error::ContractError::InsufficientBalance(
+                InsufficientBalanceErr {
+                    min_required,
+                    current_balance: con_1_bal,
+                    user: params.contestant1.clone(),
+                },
+            ));
+        } else if min_required >= con_2_bal {
+            return Err(error::ContractError::InsufficientBalance(
+                InsufficientBalanceErr {
+                    min_required,
+                    current_balance: con_2_bal,
+                    user: params.contestant2.clone(),
+                },
+            ));
+        }
+
+        // creating the key of the these two components as the key
+        let game_room_key = create_key_hash(params.contestant1.clone(), params.contestant2.clone());
+        let game_room_data = GameRoomsState {
+            contestant1: params.contestant1,
+            contestant2: params.contestant2,
+            prize_pool: params.prize_pool,
+            status: GameRoomStatus::Started {},
+        };
+
+        // checking the previous existence
+        match GAME_ROOMS_STATE.may_load(deps.storage, game_room_key.clone()) {
+            // at this point the game room was initialized previously, we check that the game room must have been finished previously
+            Ok(option_state) => match option_state {
+                Some(state) => match state.status {
+                    GameRoomStatus::Started {} => {
+                        return Err(error::ContractError::GameRoomAlreadyStarted {});
+                    }
+
+                    _ =>
+                    // exists before, updating
+                    {
+                        GAME_ROOMS_STATE.update(
+                            deps.storage,
+                            game_room_key.clone(),
+                            |state: Option<GameRoomsState>| -> Result<GameRoomsState, ContractError> {
+                                match state {
+                                    Some(_) => Ok(game_room_data.clone()),
+                                    None => Err(error::ContractError::GameRoomLoadError { msg: "couldn't load existing room !".to_string() }),
+                                }
+                            },
+                        )?;
+                    }
+                },
+                None => {
+                    // doesn't exits adding
+                    GAME_ROOMS_STATE.save(deps.storage, game_room_key, &game_room_data)?
+                }
+            },
+            Err(e) => return Err(error::ContractError::GameRoomLoadError { msg: e.to_string() }),
+        }
+
+        Ok(Response::new())
+    }
+
+    pub fn finish_game_room(
+        deps: DepsMut,
+        info: MessageInfo,
+        params: GameRoomFinishParams,
+    ) -> Result<Response, ContractError> {
+        // sender must be app admin
+        if info.sender != ADMIN.load(deps.storage)? {
+            return Err(error::ContractError::Unauthorized {});
+        }
+
+        // specifying the win or draw and changing the balances of the contestants - the platform fee
+
+        
+        // changing the game room status to finished to be able to be ongoing later
+
+        Ok(Response::new())
     }
 }
 

@@ -1,4 +1,7 @@
-use cosmwasm_std::StdError;
+use std::error;
+
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{StdError, Uint128};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -8,6 +11,20 @@ pub enum ContractError {
 
     #[error("Unauthorized")]
     Unauthorized {},
-    // Add any other custom errors you like here.
-    // Look at https://docs.rs/thiserror/1.0.21/thiserror/ for details.
+
+    #[error("insufficient Balance")]
+    InsufficientBalance(InsufficientBalanceErr),
+
+    #[error("game room already started")]
+    GameRoomAlreadyStarted {},
+
+    #[error("game room load error")]
+    GameRoomLoadError { msg: String },
+}
+
+#[cw_serde]
+pub struct InsufficientBalanceErr {
+    pub min_required: Uint128,
+    pub current_balance: Uint128,
+    pub user: String,
 }

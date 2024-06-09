@@ -1,12 +1,10 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, DepsMut, Uint128};
-
-use crate::state::Fee;
+use cosmwasm_std::{Binary, Uint128};
 
 // todo !
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub fee: Fee,
+    pub fee: Uint128,
     pub admin: String,
     pub enigma_token_duel: String,
 }
@@ -18,22 +16,22 @@ pub struct InstantiateMsg {
 pub struct GameRoomIntiParams {
     pub contestant1: String,
     pub contestant2: String,
-    // the whole prize pool amount + Enigma Fee.
+    // contestant one share + contestant two share + Enigma Duel Fee.
     pub prize_pool: Uint128,
     pub status: GameRoomStatus,
 }
 
 #[cw_serde]
 pub struct GameRoomFinishParams {
-    pub game_room_id: i64,
-    pub Result: GameRoomStatus,
+    pub game_room_id: String,
+    pub result: GameRoomStatus,
 }
 
 #[cw_serde]
 pub enum GameRoomStatus {
     Win { winner_addr: String },
     Draw {},
-    OnGoing {},
+    Started {},
 }
 #[cw_serde]
 pub struct SendFrom {
