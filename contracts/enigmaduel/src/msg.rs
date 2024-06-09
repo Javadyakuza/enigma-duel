@@ -91,8 +91,8 @@ pub enum ExecuteMsg {
         game_room_init_params: GameRoomIntiParams,
     },
     FinishGameRoom {
-        game_room_id: String,
-    }, // no output considered for this instruction
+        game_room_finish_params: GameRoomFinishParams,
+    },
     CollectFees {
         amount: Uint128,
     },

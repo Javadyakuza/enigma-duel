@@ -8,14 +8,14 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 use cw20::Cw20ReceiveMsg;
-use execute::create_game_room;
+use execute::{create_game_room, finish_game_room};
 use serde::Serialize;
 use test_edt::msg;
 
 use crate::error::ContractError;
 use crate::msg::{
-    ExecuteMsg, GameRoomStatus, GetCollectedFeesResp, GetTotalGamesResp, GetUserBalanceResp,
-    InstantiateMsg, QueryMsg,
+    ExecuteMsg, GameRoomFinishParams, GameRoomStatus, GetCollectedFeesResp, GetTotalGamesResp,
+    GetUserBalanceResp, InstantiateMsg, QueryMsg,
 };
 use crate::state::{
     Balance, GameRoomsState, ADMIN, BALANCES, ENIGMA_DUEL_TOKEN, FEE, GAME_ROOMS_STATE,
@@ -72,8 +72,8 @@ pub fn execute(
             game_room_init_params,
         } => create_game_room(deps, info, game_room_init_params),
         ExecuteMsg::FinishGameRoom {
-            game_room_id: Uint128,
-        } => Ok(Response::new()),
+            game_room_finish_params,
+        } => finish_game_room(deps, info, game_room_finish_params),
         ExecuteMsg::CollectFees { amount } => Ok(Response::new()),
         ExecuteMsg::Receive(receive_msg) => {
             execute::update_balance_callback(deps, info, receive_msg.msg)
@@ -82,7 +82,7 @@ pub fn execute(
 }
 
 pub mod execute {
-    use cosmwasm_std::{from_binary, BlockInfo};
+    use cosmwasm_std::from_binary;
 
     use super::*;
     use crate::{
