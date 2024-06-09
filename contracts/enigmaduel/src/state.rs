@@ -15,10 +15,95 @@ pub struct GameRoomsState {
     pub status: GameRoomStatus,
 }
 
+impl GameRoomsState {
+    pub fn get_finish_state(self, status: GameRoomStatus) -> Self {
+        Self {
+            contestant1: self.contestant1,
+            contestant2: self.contestant2,
+            prize_pool: Default::default(),
+            status,
+        }
+    }
+}
 #[cw_serde]
 pub struct Balance {
-    total: Uint128,
-    locked: Uint128,
+    pub total: Uint128,
+    pub locked: Uint128,
+}
+
+impl Balance {
+    pub fn new_zero() -> Self {
+        Self {
+            total: Uint128::zero(),
+            locked: Uint128::zero(),
+        }
+    }
+
+    pub fn total_increase(self, amount: Uint128) -> Self {
+        Self {
+            total: self.total.checked_add(amount).unwrap(),
+            locked: self.locked,
+        }
+    }
+
+    pub fn total_decrease(self, amount: Uint128) -> Self {
+        Self {
+            total: self.total.checked_sub(amount).unwrap(),
+            locked: self.locked,
+        }
+    }
+
+    pub fn lock(&mut self, amount: Uint128) -> Self {
+        Self {
+            total: self.total.checked_sub(amount).unwrap(),
+            locked: self.locked.checked_add(amount).unwrap(),
+        }
+    }
+
+    pub fn unlock_and_increase(
+        &mut self,
+        unlock_amount: Uint128,
+        increase_amount: Uint128,
+    ) -> Self {
+        Self {
+            total: self
+                .total
+                .checked_add(unlock_amount)
+                .unwrap()
+                .checked_add(increase_amount)
+                .unwrap(),
+            locked: self.locked.checked_sub(unlock_amount).unwrap(),
+        }
+    }
+
+    pub fn unlock_and_decrease(
+        &mut self,
+        unlock_amount: Uint128,
+        decrease_amount: Uint128,
+    ) -> Self {
+        Self {
+            total: self
+                .total
+                .checked_add(unlock_amount)
+                .unwrap()
+                .checked_sub(decrease_amount)
+                .unwrap(),
+            locked: self.locked.checked_sub(unlock_amount).unwrap(),
+        }
+    }
+
+    pub fn available_balance(self) -> Uint128 {
+        self.total.checked_sub(self.locked).unwrap()
+    }
+}
+
+impl Default for Balance {
+    fn default() -> Self {
+        Self {
+            total: Default::default(),
+            locked: Default::default(),
+        }
+    }
 }
 
 pub const ADMIN: Item<Addr> = Item::new("admin");

@@ -17,9 +17,9 @@ use crate::msg::{
     ExecuteMsg, GameRoomStatus, GetCollectedFeesResp, GetTotalGamesResp, GetUserBalanceResp,
     InstantiateMsg, QueryMsg,
 };
-use crate::state::{GameRoomsState, ADMIN, BALANCES, ENIGMA_DUEL_TOKEN, FEE, GAME_ROOMS_STATE};
-
-use self::execute::update_balance_callback;
+use crate::state::{
+    Balance, GameRoomsState, ADMIN, BALANCES, ENIGMA_DUEL_TOKEN, FEE, GAME_ROOMS_STATE,
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:enigmaduel";
@@ -45,7 +45,7 @@ pub fn instantiate(
     BALANCES.save(
         deps.storage,
         &Addr::unchecked(msg.admin.clone()),
-        &Uint128::zero(),
+        &Balance::new_zero(),
     )?;
 
     // instantiating the enigma duel token address.
@@ -82,7 +82,7 @@ pub fn execute(
 }
 
 pub mod execute {
-    use cosmwasm_std::from_binary;
+    use cosmwasm_std::{from_binary, BlockInfo};
 
     use super::*;
     use crate::{
@@ -125,19 +125,36 @@ pub mod execute {
                     },
                     Withdraw {
                         amount, receiver, ..
-                    } => cosmwasm_std::WasmMsg::Execute {
-                        contract_addr: ENIGMA_DUEL_TOKEN.load(deps.storage)?.into(),
-                        msg: to_binary(&cw20::Cw20ExecuteMsg::Send {
-                            contract: receiver.clone(),
-                            amount,
-                            msg: to_binary(&Withdraw {
-                                user: Some(info.sender.into()),
+                    } => {
+                        // checking the balance
+
+                        if let Ok(balance) =
+                            BALANCES.load(deps.storage, &Addr::unchecked(receiver.clone()))
+                        {
+                            if balance.total > amount {
+                                return Err(error::ContractError::InsufficientBalance(
+                                    InsufficientBalanceErr {
+                                        min_required: amount,
+                                        current_balance: balance.available_balance(),
+                                        user: receiver.clone(),
+                                    },
+                                ));
+                            }
+                        }
+                        cosmwasm_std::WasmMsg::Execute {
+                            contract_addr: ENIGMA_DUEL_TOKEN.load(deps.storage)?.into(),
+                            msg: to_binary(&cw20::Cw20ExecuteMsg::Send {
+                                contract: receiver.clone(),
                                 amount,
-                                receiver,
+                                msg: to_binary(&Withdraw {
+                                    user: Some(info.sender.into()),
+                                    amount,
+                                    receiver,
+                                })?,
                             })?,
-                        })?,
-                        funds: vec![],
-                    },
+                            funds: vec![],
+                        }
+                    }
                 },
             ))
     }
@@ -159,8 +176,8 @@ pub mod execute {
                     BALANCES.update(
                         deps.storage,
                         &Addr::unchecked(user.clone().unwrap()),
-                        |balance: Option<Uint128>| -> StdResult<_> {
-                            Ok(balance.unwrap_or_default() + amount)
+                        |balance: Option<Balance>| -> StdResult<_> {
+                            Ok(balance.unwrap_or_default().total_increase(amount))
                         },
                     )?;
                     Deposit { user, amount }
@@ -173,8 +190,8 @@ pub mod execute {
                     BALANCES.update(
                         deps.storage,
                         &Addr::unchecked(user.clone().unwrap()),
-                        |balance: Option<Uint128>| -> StdResult<_> {
-                            Ok(balance.unwrap_or_default().checked_sub(amount)?)
+                        |balance: Option<Balance>| -> StdResult<_> {
+                            Ok(balance.unwrap_or_default().total_decrease(amount))
                         },
                     )?;
                     Withdraw {
@@ -220,19 +237,21 @@ pub mod execute {
         );
 
         // in the following line we also check the prize pool to not be zero
-        if min_required >= con_1_bal || min_required >= con_2_bal {
+        let con_1_av = con_1_bal.available_balance();
+        let con_2_av = con_2_bal.available_balance();
+        if min_required >= con_1_av || min_required >= con_2_av {
             return Err(error::ContractError::InsufficientBalance(
                 InsufficientBalanceErr {
                     min_required,
-                    current_balance: con_1_bal,
+                    current_balance: con_1_av,
                     user: params.contestant1.clone(),
                 },
             ));
-        } else if min_required >= con_2_bal {
+        } else if min_required >= con_2_av {
             return Err(error::ContractError::InsufficientBalance(
                 InsufficientBalanceErr {
                     min_required,
-                    current_balance: con_2_bal,
+                    current_balance: con_2_av,
                     user: params.contestant2.clone(),
                 },
             ));
@@ -274,11 +293,14 @@ pub mod execute {
                 None => {
                     // doesn't exits adding
                     GAME_ROOMS_STATE.save(deps.storage, game_room_key, &game_room_data)?
+
                 }
             },
             Err(e) => return Err(error::ContractError::GameRoomLoadError { msg: e.to_string() }),
-        }
+        }   
 
+        // locking thw prize pool amount form the both contestants
+        
         Ok(Response::new())
     }
 
@@ -292,9 +314,41 @@ pub mod execute {
             return Err(error::ContractError::Unauthorized {});
         }
 
-        // specifying the win or draw and changing the balances of the contestants - the platform fee
+        // loading the game room info
+        let mut pre_game_room_state =
+            GAME_ROOMS_STATE.load(deps.storage, params.game_room_id.clone())?;
 
-        
+        // checking that game room was started
+        match pre_game_room_state.status {
+            GameRoomStatus::Started {} => {
+                return Err(crate::error::ContractError::GameRoomNotStarted {})
+            }
+            _ => {}
+        }
+        // specifying the win or draw and changing the balances of the contestants - the platform fee
+        match params.result.clone() {
+            GameRoomStatus::Win { addr } => {
+                // modifying the game room state
+                GAME_ROOMS_STATE.update(
+                    deps.storage,
+                    params.game_room_id.clone(),
+                    |_| -> StdResult<_> { Ok(pre_game_room_state.get_finish_state(params.result)) },
+                )?;
+
+                // increasing the winner balance
+                BALANCES.update(
+                    deps.storage,
+                    &Addr::unchecked(addr),
+                    |balance: Option<Balance>| -> StdResult<_> {
+                        Ok(balance.unwrap_or_default().total_decrease(amount))
+                    },
+                )?;
+                // decreasing the loser balance
+            }
+            GameRoomStatus::Draw {} => {}
+            GameRoomStatus::Started {} => {}
+        }
+
         // changing the game room status to finished to be able to be ongoing later
 
         Ok(Response::new())
@@ -313,8 +367,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }),
         QueryMsg::GetTotalGames {} => to_json_binary(&Uint128::new(5)),
         QueryMsg::GetUserBalance { user } => {
-            let balance: Option<Uint128> =
-                BALANCES.may_load(deps.storage, &Addr::unchecked("addr0000"))?;
+            let balance: Uint128 = BALANCES
+                .may_load(deps.storage, &Addr::unchecked("addr0000"))
+                .unwrap()
+                .unwrap()
+                .available_balance();
 
             Ok(to_json_binary(&balance)?)
         }

@@ -29,9 +29,9 @@ pub struct GameRoomFinishParams {
 
 #[cw_serde]
 pub enum GameRoomStatus {
-    Win { winner_addr: String },
-    Draw {},
     Started {},
+    Win { addr: String },
+    Draw {},
 }
 #[cw_serde]
 pub struct SendFrom {

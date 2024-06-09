@@ -15,10 +15,13 @@ pub enum ContractError {
     #[error("insufficient Balance")]
     InsufficientBalance(InsufficientBalanceErr),
 
-    #[error("game room already started")]
+    #[error("Game room is not started yet")]
+    GameRoomNotStarted {},
+
+    #[error("Game room already started")]
     GameRoomAlreadyStarted {},
 
-    #[error("game room load error")]
+    #[error("Game room load error")]
     GameRoomLoadError { msg: String },
 }
 
