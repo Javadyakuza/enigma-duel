@@ -16,10 +16,10 @@ pub struct GameRoomsState {
 }
 
 impl GameRoomsState {
-    pub fn get_finish_state(self, status: GameRoomStatus) -> Self {
+    pub fn get_finish_state(&self, status: GameRoomStatus) -> Self {
         Self {
-            contestant1: self.contestant1,
-            contestant2: self.contestant2,
+            contestant1: self.contestant1.clone(),
+            contestant2: self.contestant2.clone(),
             prize_pool: Default::default(),
             status,
         }

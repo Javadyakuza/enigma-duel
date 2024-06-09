@@ -87,7 +87,7 @@ pub mod execute {
     use super::*;
     use crate::{
         error::{self, InsufficientBalanceErr},
-        helpers::create_key_hash,
+        helpers::{cal_min_required, create_key_hash},
         msg::{
             GameRoomFinishParams, GameRoomIntiParams,
             UpdateBalanceMode::{self, *},
@@ -218,12 +218,7 @@ pub mod execute {
 
         // each contestant must have whole prize pool amount - enigma duel fee / 2 token balances
         // loading the fee
-        let min_required = (params
-            .prize_pool
-            .checked_sub(FEE.load(deps.storage)?)
-            .unwrap())
-        .checked_div_euclid(Uint128::new(2))
-        .unwrap();
+        let min_required = cal_min_required(params.prize_pool, Uint128::zero());
 
         let (con_1_bal, con_2_bal) = (
             BALANCES
@@ -260,8 +255,8 @@ pub mod execute {
         // creating the key of the these two components as the key
         let game_room_key = create_key_hash(params.contestant1.clone(), params.contestant2.clone());
         let game_room_data = GameRoomsState {
-            contestant1: params.contestant1,
-            contestant2: params.contestant2,
+            contestant1: params.contestant1.clone(),
+            contestant2: params.contestant2.clone(),
             prize_pool: params.prize_pool,
             status: GameRoomStatus::Started {},
         };
@@ -293,14 +288,29 @@ pub mod execute {
                 None => {
                     // doesn't exits adding
                     GAME_ROOMS_STATE.save(deps.storage, game_room_key, &game_room_data)?
-
                 }
             },
             Err(e) => return Err(error::ContractError::GameRoomLoadError { msg: e.to_string() }),
-        }   
+        }
 
-        // locking thw prize pool amount form the both contestants
-        
+        // locking the prize pool amount form the both contestants
+
+        // increasing the winner balance
+        BALANCES.update(
+            deps.storage,
+            &Addr::unchecked(params.contestant1),
+            |balance: Option<Balance>| -> StdResult<_> {
+                Ok(balance.unwrap_or_default().lock(min_required))
+            },
+        )?;
+        // increasing the winner balance
+        BALANCES.update(
+            deps.storage,
+            &Addr::unchecked(params.contestant2),
+            |balance: Option<Balance>| -> StdResult<_> {
+                Ok(balance.unwrap_or_default().lock(min_required))
+            },
+        )?;
         Ok(Response::new())
     }
 
@@ -315,18 +325,12 @@ pub mod execute {
         }
 
         // loading the game room info
-        let mut pre_game_room_state =
+        let pre_game_room_state =
             GAME_ROOMS_STATE.load(deps.storage, params.game_room_id.clone())?;
 
-        // checking that game room was started
-        match pre_game_room_state.status {
-            GameRoomStatus::Started {} => {
-                return Err(crate::error::ContractError::GameRoomNotStarted {})
-            }
-            _ => {}
-        }
         // specifying the win or draw and changing the balances of the contestants - the platform fee
         match params.result.clone() {
+            GameRoomStatus::Started {} => return Err(error::ContractError::GameRoomNotStarted {}),
             GameRoomStatus::Win { addr } => {
                 // modifying the game room state
                 GAME_ROOMS_STATE.update(
@@ -336,17 +340,75 @@ pub mod execute {
                 )?;
 
                 // increasing the winner balance
+                let tmp_fee = FEE.load(deps.storage)?;
                 BALANCES.update(
                     deps.storage,
-                    &Addr::unchecked(addr),
+                    &Addr::unchecked(addr.clone()),
                     |balance: Option<Balance>| -> StdResult<_> {
-                        Ok(balance.unwrap_or_default().total_decrease(amount))
+                        Ok(balance.unwrap_or_default().unlock_and_increase(
+                            cal_min_required(pre_game_room_state.prize_pool, Uint128::zero()),
+                            cal_min_required(pre_game_room_state.prize_pool, tmp_fee),
+                        ))
                     },
                 )?;
+
+                let loser = if pre_game_room_state.contestant1 == addr {
+                    pre_game_room_state.contestant2
+                } else {
+                    pre_game_room_state.contestant1
+                };
+
                 // decreasing the loser balance
+                BALANCES.update(
+                    deps.storage,
+                    &Addr::unchecked(loser),
+                    |balance: Option<Balance>| -> StdResult<_> {
+                        Ok(balance.unwrap_or_default().unlock_and_decrease(
+                            cal_min_required(pre_game_room_state.prize_pool, Uint128::zero()),
+                            cal_min_required(pre_game_room_state.prize_pool, tmp_fee),
+                        ))
+                    },
+                )?;
             }
-            GameRoomStatus::Draw {} => {}
-            GameRoomStatus::Started {} => {}
+            GameRoomStatus::Draw {} => {
+                // modifying the game room state
+                GAME_ROOMS_STATE.update(
+                    deps.storage,
+                    params.game_room_id.clone(),
+                    |_| -> StdResult<_> { Ok(pre_game_room_state.get_finish_state(params.result)) },
+                )?;
+
+                // increasing the winner balance
+                let tmp_fee = FEE.load(deps.storage)?;
+                BALANCES.update(
+                    deps.storage,
+                    &Addr::unchecked(pre_game_room_state.contestant1),
+                    |balance: Option<Balance>| -> StdResult<_> {
+                        Ok(balance.unwrap_or_default().unlock_and_increase(
+                            cal_min_required(
+                                pre_game_room_state.prize_pool,
+                                tmp_fee.checked_div(Uint128::new(2)).unwrap(),
+                            ),
+                            Uint128::zero(),
+                        ))
+                    },
+                )?;
+
+                // decreasing the loser balance
+                BALANCES.update(
+                    deps.storage,
+                    &Addr::unchecked(pre_game_room_state.contestant2),
+                    |balance: Option<Balance>| -> StdResult<_> {
+                        Ok(balance.unwrap_or_default().unlock_and_decrease(
+                            cal_min_required(
+                                pre_game_room_state.prize_pool,
+                                tmp_fee.checked_div(Uint128::new(2)).unwrap(),
+                            ),
+                            Uint128::zero(),
+                        ))
+                    },
+                )?;
+            }
         }
 
         // changing the game room status to finished to be able to be ongoing later
