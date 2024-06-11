@@ -108,8 +108,6 @@ impl Default for Balance {
 
 pub const ADMIN: Item<Addr> = Item::new("admin");
 pub const FEE: Item<Uint128> = Item::new("fee");
-// the admin address will be saved in this mapping for ease of use, the balance will be modified after each change accordingly to the fee amount that is reduced.
 pub const BALANCES: Map<&Addr, Balance> = Map::new("balance");
-
 pub const GAME_ROOMS_STATE: Map<String, GameRoomsState> = Map::new("game_rooms");
 pub const ENIGMA_DUEL_TOKEN: Item<Addr> = Item::new("enigma_duel_token");
