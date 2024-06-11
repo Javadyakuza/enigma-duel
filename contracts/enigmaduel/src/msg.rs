@@ -28,6 +28,12 @@ pub struct GameRoomFinishParams {
 }
 
 #[cw_serde]
+pub struct CollectFeesParams {
+    pub amount: Uint128,
+    pub receiver: String,
+}
+
+#[cw_serde]
 pub enum GameRoomStatus {
     Started {},
     Win { addr: String },
@@ -94,7 +100,7 @@ pub enum ExecuteMsg {
         game_room_finish_params: GameRoomFinishParams,
     },
     CollectFees {
-        amount: Uint128,
+        collect_fees_params: CollectFeesParams,
     },
     Receive(Cw20ReceiveMsg),
 }

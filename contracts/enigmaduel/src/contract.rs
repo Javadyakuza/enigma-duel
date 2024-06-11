@@ -8,7 +8,7 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 use cw20::Cw20ReceiveMsg;
-use execute::{create_game_room, finish_game_room};
+use execute::*;
 use serde::Serialize;
 use test_edt::msg;
 
@@ -74,7 +74,9 @@ pub fn execute(
         ExecuteMsg::FinishGameRoom {
             game_room_finish_params,
         } => finish_game_room(deps, info, game_room_finish_params),
-        ExecuteMsg::CollectFees { amount } => Ok(Response::new()),
+        ExecuteMsg::CollectFees {
+            collect_fees_params,
+        } => collect_fees(deps, info, collect_fees_params),
         ExecuteMsg::Receive(receive_msg) => {
             execute::update_balance_callback(deps, info, receive_msg.msg)
         }
@@ -89,11 +91,12 @@ pub mod execute {
         error::{self, InsufficientBalanceErr},
         helpers::{cal_min_required, create_key_hash},
         msg::{
-            GameRoomFinishParams, GameRoomIntiParams,
+            CollectFeesParams, GameRoomFinishParams, GameRoomIntiParams,
             UpdateBalanceMode::{self, *},
         },
     };
 
+    // creating a proper response for each function
     pub fn update_balance(
         deps: DepsMut,
         env: Env,
@@ -414,6 +417,46 @@ pub mod execute {
         // changing the game room status to finished to be able to be ongoing later
 
         Ok(Response::new())
+    }
+
+    pub fn collect_fees(
+        deps: DepsMut,
+        info: MessageInfo,
+        params: CollectFeesParams,
+    ) -> Result<Response, ContractError> {
+        // loading the admin
+        let admin_addr = ADMIN.load(deps.storage)?;
+
+        // checking that the admin is sending the request
+        if info.sender != admin_addr {
+            return Err(crate::error::ContractError::Unauthorized {});
+        }
+
+        // creating the the transfer msg
+        let msg = cosmwasm_std::WasmMsg::Execute {
+            contract_addr: ENIGMA_DUEL_TOKEN.load(deps.storage)?.into(),
+            msg: to_binary(&cw20::Cw20ExecuteMsg::Send {
+                contract: params.receiver.clone(),
+                amount: params.amount,
+                msg: to_binary(&Withdraw {
+                    user: Some(info.sender.into()),
+                    amount: params.amount,
+                    receiver: params.receiver.clone(),
+                })?,
+            })?,
+            funds: vec![],
+        };
+
+        let withdraw_data = Withdraw {
+            user: Some(admin_addr.into_string()),
+            amount: params.amount,
+            receiver: params.receiver,
+        };
+
+        Ok(Response::new()
+            .add_attribute("action", "collect fees")
+            .add_attribute("request_data", withdraw_data.to_string())
+            .add_message(msg))
     }
 }
 
