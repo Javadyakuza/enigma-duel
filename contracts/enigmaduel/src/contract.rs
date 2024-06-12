@@ -1,22 +1,14 @@
-use std::ops::Add;
-
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    Uint128,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw20::Cw20ReceiveMsg;
 use execute::*;
-use serde::Serialize;
-use test_edt::msg;
+use serde::{Deserialize, Serialize};
 
 use crate::error::ContractError;
-use crate::msg::{
-    ExecuteMsg, GameRoomFinishParams, GameRoomStatus, GetCollectedFeesResp, GetTotalGamesResp,
-    GetUserBalanceResp, InstantiateMsg, QueryMsg,
-};
+use crate::msg::{ExecuteMsg, GameRoomStatus, InstantiateMsg, QueryMsg};
 use crate::state::{
     Balance, GameRoomsState, ADMIN, BALANCES, ENIGMA_DUEL_TOKEN, FEE, GAME_ROOMS_STATE,
 };
@@ -84,7 +76,7 @@ pub fn execute(
 }
 
 pub mod execute {
-    use cosmwasm_std::from_binary;
+    use cosmwasm_std::from_json;
 
     use super::*;
     use crate::{
@@ -115,11 +107,11 @@ pub mod execute {
                 match update_mode {
                     Deposit { amount, .. } => cosmwasm_std::WasmMsg::Execute {
                         contract_addr: ENIGMA_DUEL_TOKEN.load(deps.storage)?.into(),
-                        msg: to_binary(&cw20::Cw20ExecuteMsg::SendFrom {
+                        msg: to_json_binary(&cw20::Cw20ExecuteMsg::SendFrom {
                             owner: info.sender.clone().into(),
                             contract: env.contract.address.into(),
                             amount,
-                            msg: to_binary(&Deposit {
+                            msg: to_json_binary(&Deposit {
                                 user: Some(info.sender.into()),
                                 amount,
                             })?,
@@ -146,10 +138,10 @@ pub mod execute {
                         }
                         cosmwasm_std::WasmMsg::Execute {
                             contract_addr: ENIGMA_DUEL_TOKEN.load(deps.storage)?.into(),
-                            msg: to_binary(&cw20::Cw20ExecuteMsg::Send {
+                            msg: to_json_binary(&cw20::Cw20ExecuteMsg::Send {
                                 contract: receiver.clone(),
                                 amount,
-                                msg: to_binary(&Withdraw {
+                                msg: to_json_binary(&Withdraw {
                                     user: Some(info.sender.into()),
                                     amount,
                                     receiver,
@@ -174,7 +166,7 @@ pub mod execute {
         }
 
         let update_balance_data: UpdateBalanceMode =
-            match from_binary::<UpdateBalanceMode>(&update_mode)? {
+            match from_json::<UpdateBalanceMode>(&update_mode)? {
                 Deposit { amount, user } => {
                     BALANCES.update(
                         deps.storage,
@@ -435,10 +427,10 @@ pub mod execute {
         // creating the the transfer msg
         let msg = cosmwasm_std::WasmMsg::Execute {
             contract_addr: ENIGMA_DUEL_TOKEN.load(deps.storage)?.into(),
-            msg: to_binary(&cw20::Cw20ExecuteMsg::Send {
+            msg: to_json_binary(&cw20::Cw20ExecuteMsg::Send {
                 contract: params.receiver.clone(),
                 amount: params.amount,
-                msg: to_binary(&Withdraw {
+                msg: to_json_binary(&Withdraw {
                     user: Some(info.sender.into()),
                     amount: params.amount,
                     receiver: params.receiver.clone(),
@@ -464,7 +456,7 @@ pub mod execute {
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetCollectedFees {} => to_json_binary(&Uint128::new(5)),
-        QueryMsg::GetGameRoomState { Game_room_id: i64 } => to_json_binary(&GameRoomsState {
+        QueryMsg::GetGameRoomState { game_room_id } => to_json_binary(&GameRoomsState {
             contestant1: "".to_string(),
             contestant2: "".to_string(),
             prize_pool: Uint128::new(5),
@@ -473,7 +465,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetTotalGames {} => to_json_binary(&Uint128::new(5)),
         QueryMsg::GetUserBalance { user } => {
             let balance: Uint128 = BALANCES
-                .may_load(deps.storage, &Addr::unchecked("addr0000"))
+                .may_load(deps.storage, &Addr::unchecked(user))
                 .unwrap()
                 .unwrap()
                 .available_balance();

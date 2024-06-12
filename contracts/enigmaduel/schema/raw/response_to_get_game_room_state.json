@@ -5,16 +5,29 @@
     {
       "type": "object",
       "required": [
+        "started"
+      ],
+      "properties": {
+        "started": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "win"
       ],
       "properties": {
         "win": {
           "type": "object",
           "required": [
-            "winner_addr"
+            "addr"
           ],
           "properties": {
-            "winner_addr": {
+            "addr": {
               "type": "string"
             }
           },
@@ -30,19 +43,6 @@
       ],
       "properties": {
         "draw": {
-          "type": "object",
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "on_going"
-      ],
-      "properties": {
-        "on_going": {
           "type": "object",
           "additionalProperties": false
         }

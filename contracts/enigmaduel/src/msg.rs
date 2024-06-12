@@ -79,7 +79,7 @@ impl UpdateBalanceMode {
                     "withdraw {} tokens for user {} from {} ",
                     amount,
                     receiver,
-                    user.clone().unwrap(),
+                    user.clone().unwrap_or_default(),
                 )
             }
         }
@@ -121,7 +121,7 @@ pub enum QueryMsg {
     #[returns(GetUserBalanceResp)]
     GetUserBalance { user: String },
     #[returns(GameRoomStatus)]
-    GetGameRoomState { Game_room_id: i64 },
+    GetGameRoomState { game_room_id: i64 },
     #[returns(GetCollectedFeesResp)]
     GetCollectedFees {},
     // TVL is the contract balance

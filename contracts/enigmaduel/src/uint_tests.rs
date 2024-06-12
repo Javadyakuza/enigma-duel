@@ -2,9 +2,8 @@
 mod tests {
     use crate::*;
 
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coin, coins, from_binary, from_json, Addr, Never, Uint128};
-    use cw20::{AllowanceResponse, BalanceResponse, Cw20Coin, Expiration, MinterResponse};
+    use cosmwasm_std::{coin, coins, Addr, Uint128};
+    use cw20::{Balance, BalanceResponse, Cw20Coin, MinterResponse};
     use cw_multi_test::{App, ContractWrapper, Executor};
     use msg::InstantiateMsg;
 
@@ -14,11 +13,11 @@ mod tests {
         enigma_addr: Addr,
     }
 
-    pub const ENIGMA_ADMIN: &str = "enigmaAdmin";
-    pub const EDT_ADMIN: &str = "edtAdmin";
-    pub const DEPLOYER: &str = "deployer";
-    pub const USER1: &str = "user1";
-    pub const USER2: &str = "user2";
+    pub const ENIGMA_ADMIN: &str = "addr0000";
+    pub const EDT_ADMIN: &str = "addr1111";
+    pub const DEPLOYER: &str = "addr2222";
+    pub const USER1: &str = "addr3333";
+    pub const USER2: &str = "addr4444";
 
     fn get_app() -> MockApp {
         let mut app = App::new(|router, _, storage| {
@@ -62,9 +61,9 @@ mod tests {
                 "contract",
                 None,
             )
-            .unwrap(); 
+            .unwrap();
 
-=        let enigma_code =
+        let enigma_code =
             ContractWrapper::new(contract::execute, contract::instantiate, contract::query); // the code that is going to be saved on chain
         let enigma_code_id = app.store_code(Box::new(enigma_code));
         let enigma_addr = app
@@ -89,14 +88,11 @@ mod tests {
         }
     }
 
-    #[test]
-    fn deposit() {
-        let mut app = get_app();
-
-        let all_resp = app
+    fn increase_allowance(app: &mut MockApp) {
+        let _ = app
             .app
             .execute_contract(
-                Addr::unchecked("addr0000"),
+                Addr::unchecked(USER1),
                 app.edt_addr.clone(),
                 &test_edt::msg::ExecuteMsg::IncreaseAllowance {
                     spender: app.enigma_addr.clone().to_string(),
@@ -106,33 +102,103 @@ mod tests {
                 &[],
             )
             .unwrap();
-
-        let exe_resp = app
+    }
+    fn deposit(app: &mut MockApp) {
+        let _ = app
             .app
             .execute_contract(
-                Addr::unchecked("addr0000"),
+                Addr::unchecked(USER1),
                 app.enigma_addr.clone(),
                 &crate::msg::ExecuteMsg::UpdateBalance {
                     update_mode: crate::msg::UpdateBalanceMode::Deposit {
-                        user: Some("addr0000".to_string()),
-                        amount: Uint128::new(100_000_000),
+                        user: Some(USER1.into()),
+                        amount: Uint128::new(1_000_000_000),
                     },
                 },
                 &[],
             )
             .unwrap();
-        println!("{:?}", exe_resp);
-        let balance: Option<Uint128> = app
+    }
+    fn withdraw(app: &mut MockApp) {
+        let _ = app
             .app
-            .wrap()
-            .query_wasm_smart(
-                &app.enigma_addr,
-                &msg::QueryMsg::GetUserBalance {
-                    user: "addr0000".to_string(),
+            .execute_contract(
+                Addr::unchecked(USER1),
+                app.enigma_addr.clone(),
+                &crate::msg::ExecuteMsg::UpdateBalance {
+                    update_mode: crate::msg::UpdateBalanceMode::Withdraw {
+                        user: None,
+                        amount: Uint128::new(1_000_000_000),
+                        receiver: USER1.into(),
+                    },
                 },
+                &[],
             )
             .unwrap();
     }
 
+    #[test]
+    fn test_deposit() {
+        let mut app = get_app();
+
+        increase_allowance(&mut app);
+        deposit(&mut app);
+
+        let enigma_balance: Option<Uint128> = app
+            .app
+            .wrap()
+            .query_wasm_smart(
+                app.enigma_addr.clone(),
+                &msg::QueryMsg::GetUserBalance { user: USER1.into() },
+            )
+            .unwrap();
+
+        let edt_balance: BalanceResponse = app
+            .app
+            .wrap()
+            .query_wasm_smart(
+                app.edt_addr,
+                &test_edt::msg::QueryMsg::Balance {
+                    address: app.enigma_addr.clone().into(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(enigma_balance.unwrap(), Uint128::new(1_000_000_000));
+        println!("{}", edt_balance.balance);
+        assert_eq!(edt_balance.balance, Uint128::new(1_000_000_000));
+    }
+
+    #[test]
+    fn test_withdraw() {
+        let mut app = get_app();
+
+        increase_allowance(&mut app);
+        deposit(&mut app);
+        withdraw(&mut app);
+
+        let enigma_balance: Option<Uint128> = app
+            .app
+            .wrap()
+            .query_wasm_smart(
+                app.enigma_addr,
+                &msg::QueryMsg::GetUserBalance { user: USER1.into() },
+            )
+            .unwrap();
+
+        let edt_balance: Option<Uint128> = app
+            .app
+            .wrap()
+            .query_wasm_smart(
+                app.edt_addr,
+                &test_edt::msg::QueryMsg::Balance {
+                    address: USER1.into(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(enigma_balance.unwrap(), Uint128::new(10_000_000_000));
+        assert_eq!(edt_balance.unwrap(), Uint128::new(0));
+    }
     // testing the callback function
 }

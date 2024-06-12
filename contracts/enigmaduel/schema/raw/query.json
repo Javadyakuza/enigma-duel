@@ -32,10 +32,10 @@
         "get_game_room_state": {
           "type": "object",
           "required": [
-            "Game_room_id"
+            "game_room_id"
           ],
           "properties": {
-            "Game_room_id": {
+            "game_room_id": {
               "type": "integer",
               "format": "int64"
             }

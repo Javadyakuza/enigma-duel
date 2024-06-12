@@ -1,8 +1,6 @@
 use cosmwasm_schema::cw_serde;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Addr, DepsMut, Uint128};
+use cosmwasm_std::{Addr, Uint128};
 use cw_storage_plus::{Item, Map};
 
 use crate::msg::GameRoomStatus;
