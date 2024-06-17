@@ -2,6 +2,8 @@
 
 This repository holds the core contract of the enigma duel platform and a cw20 sample token for emphasizing the rewarding system.
 
+> Note: This repo is related to teh archway hackthone.
+
 ## Testing
 
 ```
