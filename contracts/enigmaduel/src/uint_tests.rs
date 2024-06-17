@@ -1,13 +1,16 @@
 #[cfg(test)]
 mod tests {
-    use std::result;
+    use std::{result, sync::mpsc::Receiver};
 
     use crate::*;
 
     use cosmwasm_std::{coin, coins, Addr, Uint128, Uint256};
     use cw20::{Balance, BalanceResponse, Cw20Coin, MinterResponse};
     use cw_multi_test::{App, ContractWrapper, Executor};
-    use msg::{GameRoomFinishParams, GameRoomIntiParams, GameRoomStatus, InstantiateMsg};
+    use msg::{
+        CollectFeesParams, GameRoomFinishParams, GameRoomIntiParams, GameRoomStatus, InstantiateMsg,
+    };
+    use serde::de::IntoDeserializer;
     use state::GameRoomsState;
 
     struct MockApp {
@@ -21,6 +24,7 @@ mod tests {
     pub const DEPLOYER: &str = "addr2222";
     pub const USER1: &str = "addr3333";
     pub const USER2: &str = "addr4444";
+    pub const USER3: &str = "addr5555";
 
     fn get_app() -> MockApp {
         let mut app = App::new(|router, _, storage| {
@@ -125,23 +129,20 @@ mod tests {
     }
 
     fn withdraw(app: &mut MockApp, user: &str) {
-        match app.app.execute_contract(
-            Addr::unchecked(USER1),
-            app.enigma_addr.clone(),
-            &crate::msg::ExecuteMsg::UpdateBalance {
-                update_mode: crate::msg::UpdateBalanceMode::Withdraw {
-                    user: Some(user.into()),
-                    amount: Uint128::new(1000000000),
-                    receiver: user.into(),
+        app.app
+            .execute_contract(
+                Addr::unchecked(USER1),
+                app.enigma_addr.clone(),
+                &crate::msg::ExecuteMsg::UpdateBalance {
+                    update_mode: crate::msg::UpdateBalanceMode::Withdraw {
+                        user: Some(user.into()),
+                        amount: Uint128::new(1000000000),
+                        receiver: user.into(),
+                    },
                 },
-            },
-            &[],
-        ) {
-            Ok(res) => {}
-            Err(err) => {
-                println!("error: {}", err);
-            }
-        }
+                &[],
+            )
+            .unwrap();
     }
 
     fn create_gr(app: &mut MockApp) -> String {
@@ -168,29 +169,36 @@ mod tests {
             }
         }
     }
-    fn finish_gr(app: &mut MockApp, game_room_key: String, result: GameRoomStatus) -> String {
-        match app.app.execute_contract(
-            Addr::unchecked(ENIGMA_ADMIN),
-            app.enigma_addr.clone(),
-            &crate::msg::ExecuteMsg::FinishGameRoom {
-                game_room_finish_params: GameRoomFinishParams {
-                    game_room_key,
-                    result,
+
+    fn finish_gr(app: &mut MockApp, game_room_key: String, result: GameRoomStatus) {
+        app.app
+            .execute_contract(
+                Addr::unchecked(ENIGMA_ADMIN),
+                app.enigma_addr.clone(),
+                &crate::msg::ExecuteMsg::FinishGameRoom {
+                    game_room_finish_params: GameRoomFinishParams {
+                        game_room_key,
+                        result,
+                    },
                 },
-            },
-            &[],
-        ) {
-            Ok(res) => {
-                "lsdgf".into()
-                // println!("{:?}", res.events[1].attributes[2].value);
-                // res.events[1].attributes[2].value.clone()
-            }
-            Err(err) => {
-                println!("error: {}", err);
-                err.to_string()
-            }
-        }
+                &[],
+            )
+            .unwrap();
     }
+
+    fn collect_fees(app: &mut MockApp, receiver: String, amount: Uint128) {
+        app.app
+            .execute_contract(
+                Addr::unchecked(ENIGMA_ADMIN),
+                app.enigma_addr.clone(),
+                &crate::msg::ExecuteMsg::CollectFees {
+                    collect_fees_params: CollectFeesParams { amount, receiver },
+                },
+                &[],
+            )
+            .unwrap();
+    }
+
     #[test]
     fn test_deposit() {
         let mut app = get_app();
@@ -344,16 +352,24 @@ mod tests {
                 &msg::QueryMsg::GetGameRoomState { game_room_key },
             )
             .unwrap();
+
+        let collected_fees: Option<Uint128> = app
+            .app
+            .wrap()
+            .query_wasm_smart(app.enigma_addr.clone(), &msg::QueryMsg::GetCollectedFees {})
+            .unwrap();
         // the user one wins so the the balance must be the prize pool - fee + old balance => 1_500_000_000 - 1_00_000_000 + 1_000_000_000 = 2_400_000_000
         assert_eq!(con_1_bal.unwrap(), Uint128::new(2400000000));
         // the user two lost the game so the balance must be => old balance - prize pool / 2  = 1_000_000_00 - 750_000_000 = 250_000_000
         assert_eq!(con_2_bal.unwrap(), Uint128::new(250000000));
+        assert_eq!(collected_fees.unwrap(), Uint128::new(1_00_000_000));
 
         assert_eq!(
             gr_state.unwrap().status,
             GameRoomStatus::Win { addr: USER1.into() }
         );
-    } // testing the callback function
+    }
+
     #[test]
     fn test_finish_game_room_draw() {
         let mut app = get_app();
@@ -395,5 +411,62 @@ mod tests {
         assert_eq!(con_2_bal.unwrap(), Uint128::new(1000000000));
 
         assert_eq!(gr_state.unwrap().status, GameRoomStatus::Draw {});
-    } // testing the callback function
+    }
+
+    #[test]
+    fn test_collect_fees() {
+        let mut app = get_app();
+
+        increase_allowance(&mut app, USER1);
+        deposit(&mut app, USER1);
+        increase_allowance(&mut app, USER2);
+        deposit(&mut app, USER2);
+
+        let game_room_key = create_gr(&mut app);
+
+        let _ = finish_gr(
+            &mut app,
+            game_room_key.clone(),
+            GameRoomStatus::Win { addr: USER1.into() },
+        );
+        let admin_bal: Option<Uint128> = app
+            .app
+            .wrap()
+            .query_wasm_smart(
+                app.enigma_addr.clone(),
+                &msg::QueryMsg::GetUserBalance {
+                    user: ENIGMA_ADMIN.into(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(Uint128::new(2_00_000_000), admin_bal.unwrap());
+
+        collect_fees(&mut app, USER3.into(), admin_bal.unwrap());
+
+        let edt_balance: BalanceResponse = app
+            .app
+            .wrap()
+            .query_wasm_smart(
+                app.edt_addr,
+                &test_edt::msg::QueryMsg::Balance {
+                    address: USER3.into(),
+                },
+            )
+            .unwrap();
+        assert_eq!(Uint128::new(2_00_000_000), edt_balance.balance);
+
+        let admin_bal: Option<Uint128> = app
+            .app
+            .wrap()
+            .query_wasm_smart(
+                app.enigma_addr.clone(),
+                &msg::QueryMsg::GetUserBalance {
+                    user: ENIGMA_ADMIN.into(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(Uint128::zero(), admin_bal.unwrap());
+    }
 }

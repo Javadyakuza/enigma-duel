@@ -386,6 +386,17 @@ pub mod execute {
                         ))
                     },
                 )?;
+                let admin_addr = ADMIN.load(deps.storage)?;
+
+                BALANCES.update(
+                    deps.storage,
+                    &admin_addr,
+                    |balance: Option<Balance>| -> StdResult<_> {
+                        Ok(balance
+                            .unwrap_or_default()
+                            .total_increase(tmp_fee.checked_add(tmp_fee).unwrap()))
+                    },
+                )?;
             }
             GameRoomStatus::Draw {} => {
                 // modifying the game room state
@@ -424,7 +435,7 @@ pub mod execute {
 
         // changing the game room status to finished to be able to be ongoing later
 
-        Ok(Response::new())
+        Ok(Response::new().add_attribute("action", "finish_game_room"))
     }
 
     pub fn collect_fees(
@@ -439,18 +450,19 @@ pub mod execute {
         if info.sender != admin_addr {
             return Err(crate::error::ContractError::Unauthorized {});
         }
-
+        BALANCES.update(
+            deps.storage,
+            &admin_addr,
+            |balance: Option<Balance>| -> StdResult<_> {
+                Ok(balance.unwrap_or_default().total_decrease(params.amount))
+            },
+        )?;
         // creating the the transfer msg
         let msg = cosmwasm_std::WasmMsg::Execute {
             contract_addr: ENIGMA_DUEL_TOKEN.load(deps.storage)?.into(),
-            msg: to_json_binary(&cw20::Cw20ExecuteMsg::Send {
-                contract: params.receiver.clone(),
+            msg: to_json_binary(&cw20::Cw20ExecuteMsg::Transfer {
+                recipient: params.receiver.clone(),
                 amount: params.amount,
-                msg: to_json_binary(&Withdraw {
-                    user: Some(info.sender.into()),
-                    amount: params.amount,
-                    receiver: params.receiver.clone(),
-                })?,
             })?,
             funds: vec![],
         };
