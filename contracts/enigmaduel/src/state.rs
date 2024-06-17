@@ -91,7 +91,7 @@ impl Balance {
     }
 
     pub fn available_balance(self) -> Uint128 {
-        self.total.checked_sub(self.locked).unwrap()
+        self.total
     }
 }
 

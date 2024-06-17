@@ -121,7 +121,7 @@ pub enum QueryMsg {
     #[returns(GetUserBalanceResp)]
     GetUserBalance { user: String },
     #[returns(GameRoomStatus)]
-    GetGameRoomState { game_room_id: i64 },
+    GetGameRoomState { game_room_key: String },
     #[returns(GetCollectedFeesResp)]
     GetCollectedFees {},
     // TVL is the contract balance

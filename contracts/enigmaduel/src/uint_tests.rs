@@ -5,7 +5,8 @@ mod tests {
     use cosmwasm_std::{coin, coins, Addr, Uint128};
     use cw20::{Balance, BalanceResponse, Cw20Coin, MinterResponse};
     use cw_multi_test::{App, ContractWrapper, Executor};
-    use msg::InstantiateMsg;
+    use msg::{GameRoomIntiParams, GameRoomStatus, InstantiateMsg};
+    use state::GameRoomsState;
 
     struct MockApp {
         app: App,
@@ -88,11 +89,11 @@ mod tests {
         }
     }
 
-    fn increase_allowance(app: &mut MockApp) {
+    fn increase_allowance(app: &mut MockApp, user: &str) {
         let _ = app
             .app
             .execute_contract(
-                Addr::unchecked(USER1),
+                Addr::unchecked(user),
                 app.edt_addr.clone(),
                 &test_edt::msg::ExecuteMsg::IncreaseAllowance {
                     spender: app.enigma_addr.clone().to_string(),
@@ -103,15 +104,16 @@ mod tests {
             )
             .unwrap();
     }
-    fn deposit(app: &mut MockApp) {
+
+    fn deposit(app: &mut MockApp, user: &str) {
         let _ = app
             .app
             .execute_contract(
-                Addr::unchecked(USER1),
+                Addr::unchecked(user),
                 app.enigma_addr.clone(),
                 &crate::msg::ExecuteMsg::UpdateBalance {
                     update_mode: crate::msg::UpdateBalanceMode::Deposit {
-                        user: Some(USER1.into()),
+                        user: Some(user.into()),
                         amount: Uint128::new(1000000000),
                     },
                 },
@@ -119,15 +121,16 @@ mod tests {
             )
             .unwrap();
     }
-    fn withdraw(app: &mut MockApp) {
+
+    fn withdraw(app: &mut MockApp, user: &str) {
         match app.app.execute_contract(
             Addr::unchecked(USER1),
             app.enigma_addr.clone(),
             &crate::msg::ExecuteMsg::UpdateBalance {
                 update_mode: crate::msg::UpdateBalanceMode::Withdraw {
-                    user: Some(USER1.into()),
+                    user: Some(user.into()),
                     amount: Uint128::new(1000000000),
-                    receiver: USER1.into(),
+                    receiver: user.into(),
                 },
             },
             &[],
@@ -139,12 +142,37 @@ mod tests {
         }
     }
 
+    fn create_gr(app: &mut MockApp) -> String {
+        match app.app.execute_contract(
+            Addr::unchecked(ENIGMA_ADMIN),
+            app.enigma_addr.clone(),
+            &crate::msg::ExecuteMsg::CreateGameRoom {
+                game_room_init_params: GameRoomIntiParams {
+                    contestant1: USER1.into(),
+                    contestant2: USER2.into(),
+                    prize_pool: Uint128::new(1500000000),
+                    status: msg::GameRoomStatus::Started {},
+                },
+            },
+            &[],
+        ) {
+            Ok(res) => {
+                println!("{:?}", res.events[1].attributes[2].value);
+                res.events[1].attributes[2].value.clone()
+            }
+            Err(err) => {
+                println!("error: {}", err);
+                err.to_string()
+            }
+        }
+    }
+
     #[test]
     fn test_deposit() {
         let mut app = get_app();
 
-        increase_allowance(&mut app);
-        deposit(&mut app);
+        increase_allowance(&mut app, USER1);
+        deposit(&mut app, USER1);
 
         let enigma_balance: Option<Uint128> = app
             .app
@@ -175,9 +203,9 @@ mod tests {
     fn test_withdraw() {
         let mut app = get_app();
 
-        increase_allowance(&mut app);
-        deposit(&mut app);
-        withdraw(&mut app);
+        increase_allowance(&mut app, USER1);
+        deposit(&mut app, USER1);
+        withdraw(&mut app, USER1);
 
         let enigma_balance: Option<Uint128> = app
             .app
@@ -202,5 +230,49 @@ mod tests {
         assert_eq!(enigma_balance.unwrap(), Uint128::new(0));
         assert_eq!(edt_balance.unwrap().balance, Uint128::new(10000000000));
     }
+
+    #[test]
+    fn create_game_room() {
+        let mut app = get_app();
+
+        increase_allowance(&mut app, USER1);
+        deposit(&mut app, USER1);
+        increase_allowance(&mut app, USER2);
+        deposit(&mut app, USER2);
+
+        let game_room_key = create_gr(&mut app);
+
+        let gr_state: Option<GameRoomsState> = app
+            .app
+            .wrap()
+            .query_wasm_smart(
+                app.enigma_addr.clone(),
+                &msg::QueryMsg::GetGameRoomState { game_room_key },
+            )
+            .unwrap();
+
+        // checking if the balance locks are updated
+
+        let con_1_bal: Option<Uint128> = app
+            .app
+            .wrap()
+            .query_wasm_smart(
+                app.enigma_addr.clone(),
+                &msg::QueryMsg::GetUserBalance { user: USER1.into() },
+            )
+            .unwrap();
+        let con_2_bal: Option<Uint128> = app
+            .app
+            .wrap()
+            .query_wasm_smart(
+                app.enigma_addr,
+                &msg::QueryMsg::GetUserBalance { user: USER1.into() },
+            )
+            .unwrap();
+        assert_eq!(con_1_bal.unwrap(), Uint128::new(250000000));
+        assert_eq!(con_2_bal.unwrap(), Uint128::new(250000000));
+        assert_eq!(gr_state.unwrap().status, GameRoomStatus::Started {});
+    }
+
     // testing the callback function
 }

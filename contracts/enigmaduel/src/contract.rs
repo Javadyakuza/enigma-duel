@@ -228,6 +228,7 @@ pub mod execute {
                 .unwrap()
                 .unwrap(),
         );
+        println!("got the balances, {:?}{:?}", con_1_bal, con_2_bal);
 
         // in the following line we also check the prize pool to not be zero
         let con_1_av = con_1_bal.available_balance();
@@ -249,6 +250,7 @@ pub mod execute {
                 },
             ));
         }
+        println!("got the balances");
 
         // creating the key of the these two components as the key
         let game_room_key = create_key_hash(params.contestant1.clone(), params.contestant2.clone());
@@ -258,6 +260,7 @@ pub mod execute {
             prize_pool: params.prize_pool,
             status: GameRoomStatus::Started {},
         };
+        println!("got the balances");
 
         // checking the previous existence
         match GAME_ROOMS_STATE.may_load(deps.storage, game_room_key.clone()) {
@@ -285,13 +288,14 @@ pub mod execute {
                 },
                 None => {
                     // doesn't exits adding
-                    GAME_ROOMS_STATE.save(deps.storage, game_room_key, &game_room_data)?
+                    GAME_ROOMS_STATE.save(deps.storage, game_room_key.clone(), &game_room_data)?
                 }
             },
             Err(e) => return Err(error::ContractError::GameRoomLoadError { msg: e.to_string() }),
         }
 
         // locking the prize pool amount form the both contestants
+        println!("got the balances");
 
         // increasing the winner balance
         BALANCES.update(
@@ -301,6 +305,7 @@ pub mod execute {
                 Ok(balance.unwrap_or_default().lock(min_required))
             },
         )?;
+
         // increasing the winner balance
         BALANCES.update(
             deps.storage,
@@ -309,7 +314,11 @@ pub mod execute {
                 Ok(balance.unwrap_or_default().lock(min_required))
             },
         )?;
-        Ok(Response::new())
+        println!("got the balances");
+
+        Ok(Response::new()
+            .add_attribute("action", "crate_game_room")
+            .add_attribute("room_key", game_room_key))
     }
 
     pub fn finish_game_room(
@@ -459,12 +468,13 @@ pub mod execute {
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetCollectedFees {} => to_json_binary(&Uint128::new(5)),
-        QueryMsg::GetGameRoomState { game_room_id } => to_json_binary(&GameRoomsState {
-            contestant1: "".to_string(),
-            contestant2: "".to_string(),
-            prize_pool: Uint128::new(5),
-            status: GameRoomStatus::Draw {},
-        }),
+        QueryMsg::GetGameRoomState { game_room_key } => Ok(to_json_binary(
+            &GAME_ROOMS_STATE
+                .may_load(deps.storage, game_room_key)
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap()),
         QueryMsg::GetTotalGames {} => to_json_binary(&Uint128::new(5)),
         QueryMsg::GetUserBalance { user } => {
             let balance: Uint128 = BALANCES
