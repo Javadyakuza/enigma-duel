@@ -97,7 +97,6 @@ pub mod execute {
     ) -> Result<Response, ContractError> {
         // address doesn't need be validated because the internal state is not getting changed,
         // in the call back we change the balance and we are sure that the address is correct.
-
         // Your contract logic here
         Ok(Response::new()
             .add_attribute("action", "update_balance_request")
@@ -126,7 +125,7 @@ pub mod execute {
                         if let Ok(balance) =
                             BALANCES.load(deps.storage, &Addr::unchecked(receiver.clone()))
                         {
-                            if balance.total > amount {
+                            if balance.total < amount {
                                 return Err(error::ContractError::InsufficientBalance(
                                     InsufficientBalanceErr {
                                         min_required: amount,
@@ -135,17 +134,21 @@ pub mod execute {
                                     },
                                 ));
                             }
-                        }
+                        };
+
+                        BALANCES.update(
+                            deps.storage,
+                            &Addr::unchecked(receiver.clone()),
+                            |balance: Option<Balance>| -> StdResult<_> {
+                                Ok(balance.unwrap_or_default().total_decrease(amount))
+                            },
+                        )?;
+
                         cosmwasm_std::WasmMsg::Execute {
                             contract_addr: ENIGMA_DUEL_TOKEN.load(deps.storage)?.into(),
-                            msg: to_json_binary(&cw20::Cw20ExecuteMsg::Send {
-                                contract: receiver.clone(),
+                            msg: to_json_binary(&cw20::Cw20ExecuteMsg::Transfer {
+                                recipient: receiver.clone(),
                                 amount,
-                                msg: to_json_binary(&Withdraw {
-                                    user: Some(info.sender.into()),
-                                    amount,
-                                    receiver,
-                                })?,
                             })?,
                             funds: vec![],
                         }

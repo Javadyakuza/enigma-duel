@@ -44,11 +44,11 @@ mod tests {
                     initial_balances: vec![
                         Cw20Coin {
                             address: USER1.into(),
-                            amount: Uint128::new(10_000_000_000),
+                            amount: Uint128::new(10000000000),
                         },
                         Cw20Coin {
                             address: USER2.into(),
-                            amount: Uint128::new(10_000_000_000),
+                            amount: Uint128::new(10000000000),
                         },
                     ],
                     mint: Some(MinterResponse {
@@ -96,7 +96,7 @@ mod tests {
                 app.edt_addr.clone(),
                 &test_edt::msg::ExecuteMsg::IncreaseAllowance {
                     spender: app.enigma_addr.clone().to_string(),
-                    amount: Uint128::new(1_000_000_000),
+                    amount: Uint128::new(1000000000),
                     expires: None,
                 },
                 &[],
@@ -112,7 +112,7 @@ mod tests {
                 &crate::msg::ExecuteMsg::UpdateBalance {
                     update_mode: crate::msg::UpdateBalanceMode::Deposit {
                         user: Some(USER1.into()),
-                        amount: Uint128::new(1_000_000_000),
+                        amount: Uint128::new(1000000000),
                     },
                 },
                 &[],
@@ -120,21 +120,23 @@ mod tests {
             .unwrap();
     }
     fn withdraw(app: &mut MockApp) {
-        let _ = app
-            .app
-            .execute_contract(
-                Addr::unchecked(USER1),
-                app.enigma_addr.clone(),
-                &crate::msg::ExecuteMsg::UpdateBalance {
-                    update_mode: crate::msg::UpdateBalanceMode::Withdraw {
-                        user: None,
-                        amount: Uint128::new(1_000_000_000),
-                        receiver: USER1.into(),
-                    },
+        match app.app.execute_contract(
+            Addr::unchecked(USER1),
+            app.enigma_addr.clone(),
+            &crate::msg::ExecuteMsg::UpdateBalance {
+                update_mode: crate::msg::UpdateBalanceMode::Withdraw {
+                    user: Some(USER1.into()),
+                    amount: Uint128::new(1000000000),
+                    receiver: USER1.into(),
                 },
-                &[],
-            )
-            .unwrap();
+            },
+            &[],
+        ) {
+            Ok(res) => {}
+            Err(err) => {
+                println!("error: {}", err);
+            }
+        }
     }
 
     #[test]
@@ -164,9 +166,9 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(enigma_balance.unwrap(), Uint128::new(1_000_000_000));
+        assert_eq!(enigma_balance.unwrap(), Uint128::new(1000000000));
         println!("{}", edt_balance.balance);
-        assert_eq!(edt_balance.balance, Uint128::new(1_000_000_000));
+        assert_eq!(edt_balance.balance, Uint128::new(1000000000));
     }
 
     #[test]
@@ -186,7 +188,7 @@ mod tests {
             )
             .unwrap();
 
-        let edt_balance: Option<Uint128> = app
+        let edt_balance: Option<BalanceResponse> = app
             .app
             .wrap()
             .query_wasm_smart(
@@ -197,8 +199,8 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(enigma_balance.unwrap(), Uint128::new(10_000_000_000));
-        assert_eq!(edt_balance.unwrap(), Uint128::new(0));
+        assert_eq!(enigma_balance.unwrap(), Uint128::new(0));
+        assert_eq!(edt_balance.unwrap().balance, Uint128::new(10000000000));
     }
     // testing the callback function
 }
