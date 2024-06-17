@@ -175,7 +175,9 @@ pub mod execute {
                         deps.storage,
                         &Addr::unchecked(user.clone().unwrap()),
                         |balance: Option<Balance>| -> StdResult<_> {
-                            Ok(balance.unwrap_or_default().total_increase(amount))
+                            Ok(balance
+                                .unwrap_or(Balance::new_zero())
+                                .total_increase(amount))
                         },
                     )?;
                     Deposit { user, amount }
@@ -189,7 +191,7 @@ pub mod execute {
                         deps.storage,
                         &Addr::unchecked(user.clone().unwrap()),
                         |balance: Option<Balance>| -> StdResult<_> {
-                            Ok(balance.unwrap_or_default().total_decrease(amount))
+                            Ok(balance.unwrap().total_decrease(amount))
                         },
                     )?;
                     Withdraw {
@@ -297,7 +299,7 @@ pub mod execute {
         // locking the prize pool amount form the both contestants
         println!("got the balances");
 
-        // increasing the winner balance
+        // locking
         BALANCES.update(
             deps.storage,
             &Addr::unchecked(params.contestant1),
@@ -306,7 +308,7 @@ pub mod execute {
             },
         )?;
 
-        // increasing the winner balance
+        // locking
         BALANCES.update(
             deps.storage,
             &Addr::unchecked(params.contestant2),
@@ -333,7 +335,7 @@ pub mod execute {
 
         // loading the game room info
         let pre_game_room_state =
-            GAME_ROOMS_STATE.load(deps.storage, params.game_room_id.clone())?;
+            GAME_ROOMS_STATE.load(deps.storage, params.game_room_key.clone())?;
 
         // specifying the win or draw and changing the balances of the contestants - the platform fee
         match params.result.clone() {
@@ -342,7 +344,7 @@ pub mod execute {
                 // modifying the game room state
                 GAME_ROOMS_STATE.update(
                     deps.storage,
-                    params.game_room_id.clone(),
+                    params.game_room_key.clone(),
                     |_| -> StdResult<_> { Ok(pre_game_room_state.get_finish_state(params.result)) },
                 )?;
 
@@ -372,7 +374,7 @@ pub mod execute {
                     |balance: Option<Balance>| -> StdResult<_> {
                         Ok(balance.unwrap_or_default().unlock_and_decrease(
                             cal_min_required(pre_game_room_state.prize_pool, Uint128::zero()),
-                            cal_min_required(pre_game_room_state.prize_pool, tmp_fee),
+                            cal_min_required(pre_game_room_state.prize_pool, Uint128::zero()),
                         ))
                     },
                 )?;
@@ -381,7 +383,7 @@ pub mod execute {
                 // modifying the game room state
                 GAME_ROOMS_STATE.update(
                     deps.storage,
-                    params.game_room_id.clone(),
+                    params.game_room_key.clone(),
                     |_| -> StdResult<_> { Ok(pre_game_room_state.get_finish_state(params.result)) },
                 )?;
 
@@ -391,11 +393,8 @@ pub mod execute {
                     deps.storage,
                     &Addr::unchecked(pre_game_room_state.contestant1),
                     |balance: Option<Balance>| -> StdResult<_> {
-                        Ok(balance.unwrap_or_default().unlock_and_increase(
-                            cal_min_required(
-                                pre_game_room_state.prize_pool,
-                                tmp_fee.checked_div(Uint128::new(2)).unwrap(),
-                            ),
+                        Ok(balance.unwrap_or_default().unlock_and_decrease(
+                            cal_min_required(pre_game_room_state.prize_pool, Uint128::zero()),
                             Uint128::zero(),
                         ))
                     },
@@ -407,10 +406,7 @@ pub mod execute {
                     &Addr::unchecked(pre_game_room_state.contestant2),
                     |balance: Option<Balance>| -> StdResult<_> {
                         Ok(balance.unwrap_or_default().unlock_and_decrease(
-                            cal_min_required(
-                                pre_game_room_state.prize_pool,
-                                tmp_fee.checked_div(Uint128::new(2)).unwrap(),
-                            ),
+                            cal_min_required(pre_game_room_state.prize_pool, Uint128::zero()),
                             Uint128::zero(),
                         ))
                     },
@@ -480,8 +476,17 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let balance: Uint128 = BALANCES
                 .may_load(deps.storage, &Addr::unchecked(user))
                 .unwrap()
-                .unwrap()
+                .unwrap_or(Balance::new_zero())
                 .available_balance();
+
+            Ok(to_json_binary(&balance)?)
+        }
+        QueryMsg::GetUserLockedBalance { user } => {
+            let balance: Uint128 = BALANCES
+                .may_load(deps.storage, &Addr::unchecked(user))
+                .unwrap()
+                .unwrap_or(Balance::new_zero())
+                .locked_balance();
 
             Ok(to_json_binary(&balance)?)
         }

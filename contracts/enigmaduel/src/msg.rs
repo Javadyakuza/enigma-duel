@@ -23,7 +23,7 @@ pub struct GameRoomIntiParams {
 
 #[cw_serde]
 pub struct GameRoomFinishParams {
-    pub game_room_id: String,
+    pub game_room_key: String,
     pub result: GameRoomStatus,
 }
 
@@ -120,6 +120,8 @@ pub struct CreateGameRoomResp(pub i64); // the game room id.
 pub enum QueryMsg {
     #[returns(GetUserBalanceResp)]
     GetUserBalance { user: String },
+    #[returns(GetUserBalanceResp)]
+    GetUserLockedBalance { user: String },
     #[returns(GameRoomStatus)]
     GetGameRoomState { game_room_key: String },
     #[returns(GetCollectedFeesResp)]

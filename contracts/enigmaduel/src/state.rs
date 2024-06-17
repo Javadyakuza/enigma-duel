@@ -68,7 +68,7 @@ impl Balance {
                 .total
                 .checked_add(unlock_amount)
                 .unwrap()
-                .checked_add(increase_amount)
+                .checked_add(increase_amount + unlock_amount)
                 .unwrap(),
             locked: self.locked.checked_sub(unlock_amount).unwrap(),
         }
@@ -92,6 +92,9 @@ impl Balance {
 
     pub fn available_balance(self) -> Uint128 {
         self.total
+    }
+    pub fn locked_balance(self) -> Uint128 {
+        self.locked
     }
 }
 
