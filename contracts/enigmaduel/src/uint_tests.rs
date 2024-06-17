@@ -4,7 +4,7 @@ mod tests {
 
     use crate::*;
 
-    use cosmwasm_std::{coin, coins, Addr, Uint128};
+    use cosmwasm_std::{coin, coins, Addr, Uint128, Uint256};
     use cw20::{Balance, BalanceResponse, Cw20Coin, MinterResponse};
     use cw_multi_test::{App, ContractWrapper, Executor};
     use msg::{GameRoomFinishParams, GameRoomIntiParams, GameRoomStatus, InstantiateMsg};
@@ -274,7 +274,11 @@ mod tests {
                 &msg::QueryMsg::GetGameRoomState { game_room_key },
             )
             .unwrap();
-
+        let gr_count: Option<Uint256> = app
+            .app
+            .wrap()
+            .query_wasm_smart(app.enigma_addr.clone(), &msg::QueryMsg::GetTotalGames {})
+            .unwrap();
         // checking if the balance locks are updated
 
         let con_1_bal: Option<Uint128> = app
@@ -296,6 +300,7 @@ mod tests {
         assert_eq!(con_1_bal.unwrap(), Uint128::new(250000000));
         assert_eq!(con_2_bal.unwrap(), Uint128::new(250000000));
         assert_eq!(gr_state.unwrap().status, GameRoomStatus::Started {});
+        assert_eq!(gr_count.unwrap(), Uint256::one());
     }
 
     #[test]

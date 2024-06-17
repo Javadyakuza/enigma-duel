@@ -1,6 +1,6 @@
 use cosmwasm_schema::cw_serde;
 
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Uint128, Uint256};
 use cw_storage_plus::{Item, Map};
 
 use crate::msg::GameRoomStatus;
@@ -111,4 +111,5 @@ pub const ADMIN: Item<Addr> = Item::new("admin");
 pub const FEE: Item<Uint128> = Item::new("fee");
 pub const BALANCES: Map<&Addr, Balance> = Map::new("balance");
 pub const GAME_ROOMS_STATE: Map<String, GameRoomsState> = Map::new("game_rooms");
+pub const GAME_ROOMS_COUNT: Item<Uint256> = Item::new("game_room_count");
 pub const ENIGMA_DUEL_TOKEN: Item<Addr> = Item::new("enigma_duel_token");

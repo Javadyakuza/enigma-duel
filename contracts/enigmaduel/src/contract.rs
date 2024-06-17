@@ -2,6 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    Uint256,
 };
 use cw2::set_contract_version;
 use execute::*;
@@ -10,7 +11,8 @@ use serde::{Deserialize, Serialize};
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, GameRoomStatus, InstantiateMsg, QueryMsg};
 use crate::state::{
-    Balance, GameRoomsState, ADMIN, BALANCES, ENIGMA_DUEL_TOKEN, FEE, GAME_ROOMS_STATE,
+    Balance, GameRoomsState, ADMIN, BALANCES, ENIGMA_DUEL_TOKEN, FEE, GAME_ROOMS_COUNT,
+    GAME_ROOMS_STATE,
 };
 
 // version info for migration info
@@ -76,7 +78,7 @@ pub fn execute(
 }
 
 pub mod execute {
-    use cosmwasm_std::from_json;
+    use cosmwasm_std::{from_json, Uint256};
 
     use super::*;
     use crate::{
@@ -86,6 +88,7 @@ pub mod execute {
             CollectFeesParams, GameRoomFinishParams, GameRoomIntiParams,
             UpdateBalanceMode::{self, *},
         },
+        state::GAME_ROOMS_COUNT,
     };
 
     // creating a proper response for each function
@@ -316,8 +319,13 @@ pub mod execute {
                 Ok(balance.unwrap_or_default().lock(min_required))
             },
         )?;
-        println!("got the balances");
 
+        let count = &GAME_ROOMS_COUNT
+            .load(deps.storage)
+            .unwrap_or(Uint256::zero());
+        GAME_ROOMS_COUNT
+            .save(deps.storage, &count.checked_add(Uint256::one()).unwrap())
+            .unwrap();
         Ok(Response::new()
             .add_attribute("action", "crate_game_room")
             .add_attribute("room_key", game_room_key))
@@ -471,7 +479,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 .unwrap(),
         )
         .unwrap()),
-        QueryMsg::GetTotalGames {} => to_json_binary(&Uint128::new(5)),
+        QueryMsg::GetTotalGames {} => Ok(to_json_binary(
+            &GAME_ROOMS_COUNT
+                .load(deps.storage)
+                .unwrap_or(Uint256::zero()),
+        )
+        .unwrap()),
         QueryMsg::GetUserBalance { user } => {
             let balance: Uint128 = BALANCES
                 .may_load(deps.storage, &Addr::unchecked(user))
