@@ -6,7 +6,6 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 use execute::*;
-use serde::{Deserialize, Serialize};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, GameRoomStatus, InstantiateMsg, QueryMsg};
@@ -407,7 +406,6 @@ pub mod execute {
                 )?;
 
                 // increasing the winner balance
-                let tmp_fee = FEE.load(deps.storage)?;
                 BALANCES.update(
                     deps.storage,
                     &Addr::unchecked(pre_game_room_state.contestant1),
@@ -483,7 +481,13 @@ pub mod execute {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetCollectedFees {} => to_json_binary(&Uint128::new(5)),
+        QueryMsg::GetCollectedFees {} => {
+            let admin_addr = ADMIN.load(deps.storage)?;
+            let col_fees = BALANCES
+                .load(deps.storage, &admin_addr)
+                .unwrap_or(Balance::new_zero());
+            to_json_binary(&col_fees.total)
+        }
         QueryMsg::GetGameRoomState { game_room_key } => Ok(to_json_binary(
             &GAME_ROOMS_STATE
                 .may_load(deps.storage, game_room_key)

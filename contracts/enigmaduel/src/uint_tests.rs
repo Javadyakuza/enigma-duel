@@ -1,16 +1,14 @@
 #[cfg(test)]
 mod tests {
-    use std::{result, sync::mpsc::Receiver};
 
     use crate::*;
 
     use cosmwasm_std::{coin, coins, Addr, Uint128, Uint256};
-    use cw20::{Balance, BalanceResponse, Cw20Coin, MinterResponse};
+    use cw20::{BalanceResponse, Cw20Coin, MinterResponse};
     use cw_multi_test::{App, ContractWrapper, Executor};
     use msg::{
         CollectFeesParams, GameRoomFinishParams, GameRoomIntiParams, GameRoomStatus, InstantiateMsg,
     };
-    use serde::de::IntoDeserializer;
     use state::GameRoomsState;
 
     struct MockApp {
@@ -362,7 +360,7 @@ mod tests {
         assert_eq!(con_1_bal.unwrap(), Uint128::new(2400000000));
         // the user two lost the game so the balance must be => old balance - prize pool / 2  = 1_000_000_00 - 750_000_000 = 250_000_000
         assert_eq!(con_2_bal.unwrap(), Uint128::new(250000000));
-        assert_eq!(collected_fees.unwrap(), Uint128::new(1_00_000_000));
+        assert_eq!(collected_fees.unwrap(), Uint128::new(2_00_000_000));
 
         assert_eq!(
             gr_state.unwrap().status,
