@@ -63,6 +63,7 @@ async function main() {
     memo: "Instantiating the EDT token",
     funds: [{ denom: "aconst", amount: "1000000000000000000" }],
   };
+
   const instantiateResult = await signingClient.instantiate(
     accountAddress,
     codeId,
