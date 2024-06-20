@@ -37,16 +37,6 @@ async function main() {
   const uploadResult = await signingClient.upload(
     accountAddress,
     contractData,
-    // 5000000000
-    // {
-    //   amount: [
-    //     {
-    //       denom: "aconst",
-    //       amount: "7000000000000000000",
-    //     },
-    //   ],
-    //   gas: "50000000",
-    // }
     "auto"
   );
   if (uploadResult.codeId !== undefined && uploadResult.codeId !== 0) {
@@ -82,7 +72,54 @@ async function main() {
     instantiateOptions
   );
 
-  console.log("Instantiation successful:", instantiateResult.transactionHash);
+  console.log(
+    "Instantiation edt successful:",
+    instantiateResult.transactionHash
+  );
+
+  const engima_wasmCode = fs.readFileSync("./artifacts/enigmaduel.wasm");
+  const engima_encoded = Buffer.from(wasmCode.toString(), "binary").toString(
+    "base64"
+  );
+  const engima_contractData = toByteArray(encoded);
+
+  const engima_uploadResult = await signingClient.upload(
+    accountAddress,
+    engima_contractData,
+    "auto"
+  );
+  if (
+    engima_uploadResult.codeId !== undefined &&
+    engima_uploadResult.codeId !== 0
+  ) {
+    console.log("Storage failed:", engima_uploadResult.logs);
+  } else {
+    console.log("Storage successful:", engima_uploadResult.transactionHash);
+  }
+  const enigma_codeId = engima_uploadResult.codeId;
+  const enigma_msg = {
+    fee: "1_00_000_000",
+    admin: accountAddress,
+    enigma_token_duel: instantiateResult.contractAddress,
+  };
+
+  const enigma_instantiateOptions = {
+    memo: "Instantiating the enigma duel platform",
+    funds: [{ denom: "aconst", amount: "1000000000000000000" }],
+  };
+  const enigma_instantiateResult = await signingClient.instantiate(
+    accountAddress,
+    codeId,
+    msg,
+    "Enigma_init",
+    "auto",
+    instantiateOptions
+  );
+
+  console.log(
+    "Instantiation enigma successful:",
+    instantiateResult.transactionHash
+  );
 }
 
 main();
