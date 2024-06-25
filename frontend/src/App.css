@@ -5,6 +5,7 @@ html, body {
   justify-content: center;
   align-items: center;
   position: absolute;
+  background-color: #1d1a1a;
 }
 
 .main-container {
