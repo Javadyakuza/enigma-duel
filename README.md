@@ -26,7 +26,7 @@ cargo test
 
 ## Credits:
 
-| Component                    | Address                                                            |
-| ---------------------------- | ------------------------------------------------------------------ |
-| testnet cw20 enigma token    | archway1p4ttw4xlf8l2kuyuq6wluezmfd6k8gak03lycv4d2gr9j4yq4vvs2f9klk |
-| testnet enigma duel platform | archway1rx55z575n6xx8946szytf2tl7eft6rl62kt8jm4cf0zxmz8k86rsqeul77 |
+| Component                            | Address                                                            |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| testnet cw20 enigma duel token (EDT) | archway1p4ttw4xlf8l2kuyuq6wluezmfd6k8gak03lycv4d2gr9j4yq4vvs2f9klk |
+| testnet enigma duel platform         | archway1rx55z575n6xx8946szytf2tl7eft6rl62kt8jm4cf0zxmz8k86rsqeul77 |
