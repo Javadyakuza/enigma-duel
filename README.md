@@ -1,6 +1,14 @@
-[Enigma Duel app](https://enigma-duel.vercel.app)
+<div align="center">
+
+[ ⮫ Enigma Duel App ⮪ ](https://enigma-duel.vercel.app)
+
+</div>
+
+<div align="center">
 
 ![EnigmaDuel LOGO](https://i.postimg.cc/L8LB4G2n/enigmaduel.jpg)
+
+</div>
 
 # Enigma Duel Contracts
 
