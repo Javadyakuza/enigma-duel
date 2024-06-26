@@ -24,7 +24,7 @@ cargo build --release --lib --target wasm32-unknown-unknown
 cargo test
 ```
 
-## Credits:
+## Deployments:
 
 | Component                            | Address                                                            |
 | ------------------------------------ | ------------------------------------------------------------------ |
