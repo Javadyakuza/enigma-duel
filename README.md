@@ -1,5 +1,7 @@
 [Enigma Duel app](https://enigma-duel.vercel.app)
 
+![EnigmaDuel LOGO](https://i.postimg.cc/L8LB4G2n/enigmaduel.jpg)
+
 # Enigma Duel Contracts
 
 This repository holds the core contract of the enigma duel platform and a cw20 sample token for emphasizing the rewarding system.
